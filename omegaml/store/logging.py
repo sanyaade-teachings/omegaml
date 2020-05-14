@@ -307,7 +307,7 @@ class TailableLogDataset:
 def _make_record(level, levelno, name, message, text=None, fmt='{message}'):
     from datetime import datetime
     created = datetime.utcnow()
-    text = text if text is None else fmt.format(**locals())
+    text = text if text is not None else fmt.format(**locals())
     return {
         'levelname': level,
         'levelno': levelno,
