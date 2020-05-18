@@ -94,6 +94,26 @@ class FilteredCollection:
         query.update(filter or {})
         return self.collection.find_one(query, *args, **kwargs)
 
+    def find_one_and_delete(self, filter=None, **kwargs):
+        query = dict(self.query)
+        query.update(filter or {})
+        return self.collection.find_one_and_delete(query,
+                                                   **kwargs)
+
+    def find_one_and_replace(self, replacement, filter=None, **kwargs):
+        query = dict(self.query)
+        query.update(filter or {})
+        return self.collection.find_one_and_replace(query,
+                                                    replacement,
+                                                    **kwargs)
+
+    def find_one_and_update(self, update, filter=None, **kwargs):
+        query = dict(self.query)
+        query.update(filter or {})
+        return self.collection.find_one_and_update(query,
+                                                   update,
+                                                   **kwargs)
+
     def count(self, filter=None, **kwargs):
         query = dict(self.query)
         query.update(filter or {})
@@ -109,6 +129,27 @@ class FilteredCollection:
 
     def list_indexes(self, **kwargs):
         return self.list_indexes(**kwargs)
+
+    def group(self, key, initial, reduce, condition=None, **kwargs):
+        condition = dict(self.query)
+        condition.update(condition or {})
+        return self.collection.group(key, condition, initial,
+                                     reduce,
+                                     **kwargs)
+
+    def map_reduce(self, m, r, out, full_response=False, query=None, **kwargs):
+        _query = dict(self.query)
+        _query.update(query or {})
+        return self.collection.map_reduce(m, r, out,
+                                          full_response=False,
+                                          query=_query, **kwargs)
+
+    def inline_map_reduce(self, m, r, full_response=False,
+                          query=None, **kwargs):
+        _query = dict(self.query)
+        _query.update(query or {})
+        return self.collection.inline_map_reduce(m, r,
+                                                 full_response=False, query=_query, **kwargs)
 
     def insert(self, *args, **kwargs):
         raise NotImplementedError(

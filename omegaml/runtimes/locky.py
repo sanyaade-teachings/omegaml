@@ -1,15 +1,15 @@
+from sklearn.externals.joblib.parallel import BACKENDS
 from tqdm import tqdm
-
-try:
-    from sklearn.externals.joblib.parallel import BACKENDS
-except:
-    from joblib.parallel import BACKENDS
-    pass
 
 LokyBackend = BACKENDS['loky']
 
 
 class OmegaRuntimeBackend(LokyBackend):
+    """
+    omega custom parallel backend to print progress
+
+    TODO: extend for celery dispatching
+    """
     def __init__(self, *args, **kwargs):
         self._tqdm = None
         self._job_count = kwargs.pop('n_tasks', None)

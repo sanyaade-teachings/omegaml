@@ -5,11 +5,47 @@ from omegaml.util import PickableCollection
 
 class ParallelApplyMixin:
     """
-    enables parallel apply to MDataFrame
+    Enables parallel apply to MDataFrame
+
+    This enables Python-native Pandas processing to be applied to MDataFrames
+    of any size
+
+    Usage:
+        def myfunc(df):
+            # this function is executed for each chunk in parallel
+            # use any Pandas DataFrame native functions
+            df[...] = df.apply(...)
+
+        om.datasets.getl('verylarge').transform(myfunc).persist('transformed')
     """
-    def transform(self, fn=None, inplace=False, preparefn=None, n_jobs=-2, maxobs=None,
-                  chunksize=50000, verbose=100, chunkfn=None, outname=None,
+
+    def transform(self, fn=None, n_jobs=-2, maxobs=None,
+                  chunksize=50000, chunkfn=None, outname=None,
                   resolve='worker'):
+        """
+
+        Args:
+            fn (func): the function to apply to each chunk, receives the
+               chunk DataFrame (resolve==worker) or MDataFrame (resolve==function)
+            n_jobs (int): number of jobs, defaults to CPU count - 1
+            maxobs (int): number of max observations to process, defaults to
+               len of mdf
+            chunksize (int): max size of each chunk, defaults to 50000
+            chunkfn (func): the function to chunk by
+            outname (name): output collection name, defaults to _tmp_ prefix of
+              input name
+            resolve (string): worker, function. If worker is specified chunkfn
+                receives the resolved DataFrame, otherwise receives the MDataFrame.
+                Specify function to apply a custom resolving strategy (e.g. processing
+                records one by one). Defaults to worker which uses .value on each
+                chunk to resolve each chunk to a DataFrame before sending
+
+        See Also:
+            https://joblib.readthedocs.io/en/latest/generated/joblib.Parallel.html
+
+        Returns:
+
+        """
         mdf = self.__class__(self.collection, **self._getcopy_kwargs())
         self._pyapply_opts = getattr(self, '_pyapply_opts', {})
         self._pyapply_opts.update({
@@ -45,18 +81,18 @@ class ParallelApplyMixin:
         outname = opts['outname']
         append = opts['append']
         resolve = opts['resolve']
-        # prepare for serialization to remote worker
         outcoll = PickableCollection(mdf.collection.database[outname])
         if not append:
             outcoll.drop()
-        # run in parallel
-        chunks = chunkfn(mdf, chunksize, maxobs)
-        runner = delayed(pyapply_process_chunk)
-        worker_resolves_mdf = resolve in ('worker', 'w')
-        jobs = [runner(mdf, i, chunksize, applyfn, outcoll, worker_resolves_mdf)
-                for i, mdf in enumerate(chunks)]
         with Parallel(n_jobs=n_jobs, backend='omegaml',
                       verbose=verbose) as p:
+            # prepare for serialization to remote worker
+            chunks = chunkfn(mdf, chunksize, maxobs)
+            runner = delayed(pyapply_process_chunk)
+            worker_resolves_mdf = resolve in ('worker', 'w')
+            # run in parallel
+            jobs = [runner(mdf, i, chunksize, applyfn, outcoll, worker_resolves_mdf)
+                    for i, mdf in enumerate(chunks)]
             p._backend._job_count = len(jobs)
             if verbose:
                 print("Submitting {} tasks".format(len(jobs)))
@@ -64,6 +100,7 @@ class ParallelApplyMixin:
         return outcoll
 
     def _get_cursor(self, pipeline=None, use_cache=True):
+        # called by .value
         if getattr(self, '_pyapply_opts', None):
             result = self._do_transform().find()
         else:
@@ -71,6 +108,21 @@ class ParallelApplyMixin:
         return result
 
     def persist(self, name=None, store=None, append=False, local=False):
+        """
+        Persist the result of a .transform() in chunks
+
+        Args:
+            name (str): the name of the target dataset
+            store (OmegaStore): the target store, defaults to om.datasets
+            append (bool): if True will append the data, otherwise replace. Defaults
+               to False
+            local (bool): if True resolves a pending aggregation result into memory first, then persists
+               result. Defaults to False, effectively persisting the result by the database without
+               returning to the local process
+
+        Returns:
+            Metadata of persisted dataset
+        """
         self._pyapply_opts = getattr(self, '_pyapply_opts', {})
         # -- .transform() active
         if self._pyapply_opts:
@@ -110,7 +162,7 @@ def pyappply_nop_transform(ldf):
     pass
 
 
-def pyapply_process_chunk(mdf, i, chunksize, applyfn, outcoll, resolve):
+def pyapply_process_chunk(mdf, i, chunksize, applyfn, outcoll, worker_resolves):
     # chunk processor
     import pandas as pd
     from inspect import signature
@@ -121,7 +173,7 @@ def pyapply_process_chunk(mdf, i, chunksize, applyfn, outcoll, resolve):
     sig = signature(applyfn)
     params = sig.parameters
     try:
-        if resolve:
+        if worker_resolves:
             # requested to resolve value before passing on
             chunkdf = mdf.value
         else:
