@@ -44,7 +44,7 @@ def install_package(src, dst):
               '--target', dst)
 
 
-def load_from_path(name, path):
+def load_from_path(name, path, keep_syspath=True):
     import importlib
     sys.path.insert(0, path)
     try:
@@ -54,13 +54,14 @@ def load_from_path(name, path):
             del globals()[name]
         mod = importlib.import_module(name)
     finally:
-        sys.path.remove(path)
+        if not keep_syspath:
+            sys.path.remove(path)
     return mod
 
 
-def install_and_import(pkgfilename, package, installdir):
+def install_and_import(pkgfilename, package, installdir, keep_syspath=True):
     install_package(pkgfilename, installdir)
-    mod = load_from_path(package, installdir)
+    mod = load_from_path(package, installdir, keep_syspath=keep_syspath)
     return mod
 
 

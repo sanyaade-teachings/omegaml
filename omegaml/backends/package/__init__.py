@@ -48,7 +48,7 @@ class PythonPackageData(BaseDataBackend):
             attributes=attributes,
             gridfile=gridfile).save()
 
-    def get(self, name, **kwargs):
+    def get(self, name, keep_syspath=True, **kwargs):
         """
         Load package from store, install it locally and load.
 

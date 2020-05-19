@@ -7,6 +7,7 @@ import pandas as pd
 import six
 
 from omegaml.backends.basedata import BaseDataBackend
+from omegaml.mrelational import MTable, MRelationalCollection
 
 try:
     import snowflake
@@ -108,7 +109,7 @@ class SQLAlchemyBackend(BaseDataBackend):
         return super().drop(name, **kwargs)
 
     def get(self, name, sql=None, chunksize=None, raw=False, sqlvars=None,
-            secrets=None, index=True, keep=False, lazy=False, *args, **kwargs):
+            secrets=None, table=None, index=True, keep=False, lazy=False, *args, **kwargs):
         """
         retrieve connection or query data from connection
 
@@ -137,7 +138,8 @@ class SQLAlchemyBackend(BaseDataBackend):
         """
         meta = self.data_store.metadata(name)
         connection_str = meta.kind_meta.get('sqlalchemy_connection')
-        sql = sql or meta.kind_meta.get('sql')
+        table = table
+        sql = sql or meta.kind_meta.get('sql') or self._default_sql(table)
         chunksize = chunksize or meta.kind_meta.get('chunksize')
         keep = getattr(self.data_store.defaults, 'SQLALCHEMY_ALWAYS_CACHE',
                        ALWAYS_CACHE) or keep
@@ -157,8 +159,9 @@ class SQLAlchemyBackend(BaseDataBackend):
             if not lazy:
                 result = pd.read_sql(sql, connection, chunksize=chunksize, index_col=index_cols, **kwargs)
             else:
-                # lazy returns a cursor
-                result = connection.execute(sql)
+                # lazy returns a MTable
+                collection = MRelationalCollection(sql, connection)
+                result = MTable(collection)
             if not keep:
                 connection.close()
             return result
@@ -385,6 +388,9 @@ class SQLAlchemyBackend(BaseDataBackend):
         if secrets:
             secrets = _format_dict(secrets, **os.environ, user=getuser())
         return secrets
+
+    def _default_sql(self, table):
+        return 'select * from {table}'.format(**locals())
 
 
 def _is_valid_url(url):

@@ -115,6 +115,10 @@ OMEGA_MDF_MIXINS = [
     ('omegaml.mixins.mdf.apply.ApplyStatistics', 'MDataFrame,MSeries'),
     ('omegaml.mixins.mdf.ParallelApplyMixin', 'MDataFrame'),
 ]
+#: mtable mixins
+OMEGA_MREL_MIXINS = [
+    ('omegaml.mixins.relational.ParallelMixin', 'MTable'),
+]
 #: mdataframe apply context mixins
 OMEGA_MDF_APPLY_MIXINS = [
     ('omegaml.mixins.mdf.ApplyArithmetics', 'MDataFrame,MSeries'),
