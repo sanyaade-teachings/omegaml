@@ -7,9 +7,9 @@ import os
 import six
 import sys
 import yaml
-from sklearn.externals.joblib import register_parallel_backend
+from joblib import register_parallel_backend
 
-from omegaml.runtimes.locky import OmegaRuntimeBackend
+from omegaml.runtimes.backends.loky import OmegaRuntimeBackend
 from omegaml.util import tensorflow_available, keras_available, module_available
 
 # determine how we're run

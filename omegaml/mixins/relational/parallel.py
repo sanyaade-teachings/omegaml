@@ -1,6 +1,34 @@
-from sklearn.externals.joblib import Parallel, delayed
+from joblib import Parallel, delayed
 
-from omegaml.util import PickableCollection
+"""
+lazy.transform(func).persist('name')
+
+process 1:
+    result = lazy[0:chunksize].value
+    om.datasets.put(result, name)
+    
+process 2:
+    result = lazy[chunksize:2*chunksize].value
+    om.datasets.put(result, name)
+    
+in general:
+
+process i:
+    result = store.getl(source).filter(chunk-spec[i])
+    store.put(result, name) 
+    
+.transform() => needs to create the transform specification
+.persist() => run the transform and persist each chunk 
+
+    
+Transform process:
+
+with Parallel() as p:
+    runner = delayed(transform-fn)
+    chunks = chunker()
+    jobs = [runner(i, ...) for i in chunks] 
+    p(jobs)
+"""
 
 
 class ParallelMixin:
@@ -25,15 +53,17 @@ class ParallelMixin:
           Parallel()(myfunc(chunk) for chunk in chunker('verylarge'))()
 
           where chunker() is a function that returns a list of serializable
-          chunks and passes each chunk to myfunc as a resolved DataFrame.
+          chunks and passes each chunk to myfunc as a resolvable DataFrame.
 
         * .persist() is the equivalent of result = myfunc(chunk) => store.put(result)
           where myfunc(chunk) returns a dataframe that is saved using store.put
     """
 
+    def _init_mixin(self, *args, **kwargs):
+        self._transform = None
+
     def transform(self, fn=None, n_jobs=-2, maxobs=None,
-                  chunksize=50000, chunkfn=None, outname=None,
-                  resolve='worker'):
+                  chunksize=50000, chunkfn=None, resolve='worker'):
         """
 
         Args:
@@ -58,69 +88,9 @@ class ParallelMixin:
         Returns:
 
         """
-        mdf = self.__class__(self.collection, **self._getcopy_kwargs())
-        self._pyapply_opts = getattr(self, '_pyapply_opts', {})
-        self._pyapply_opts.update({
-            'maxobs': maxobs or len(self),
-            'n_jobs': n_jobs,
-            'chunksize': chunksize,
-            'applyfn': fn or pyappply_nop_transform,
-            'chunkfn': chunkfn,
-            'mdf': mdf,
-            'append': False,
-            'outname': outname or '_tmp{}_'.format(mdf.relational.name),
-            'resolve': resolve,  # worker or function
-        })
+        self._transform = MTransform(self, fn=fn, n_jobs=n_jobs, maxobs=maxobs,
+                                     chunksize=chunksize, chunkfn=chunkfn, resolve=resolve)
         return self
-
-    def _chunker(self, mdf, chunksize, maxobs):
-        if getattr(mdf.collection, 'query', None):
-            for i in range(0, maxobs, chunksize):
-                yield mdf.skip(i).head(i + chunksize)
-        else:
-            for i in range(0, maxobs, chunksize):
-                yield mdf.iloc[i:i + chunksize]
-
-    def _do_transform(self, verbose=0):
-        # setup mdf and parameters
-        opts = self._pyapply_opts
-        n_jobs = opts['n_jobs']
-        chunksize = opts['chunksize']
-        applyfn = opts['applyfn']
-        chunkfn = opts['chunkfn'] or self._chunker
-        maxobs = opts['maxobs']
-        mdf = opts['mdf']
-        outname = opts['outname']
-        append = opts['append']
-        resolve = opts['resolve']
-        # prepare for serialization to remote worker
-        outcoll = PickableCollection(mdf.collection.database[outname])
-        if not append:
-            outcoll.drop()
-        with Parallel(n_jobs=n_jobs, backend='omegaml',
-                      verbose=verbose) as p:
-            # run in parallel
-            # -- chunks is the generator that yields serializable chunks
-            # -- runner is the delayed chunk processing function
-            # -- jobs is the list of all chunks
-            chunks = chunkfn(mdf, chunksize, maxobs)
-            runner = delayed(pyapply_process_chunk)
-            worker_resolves_mdf = resolve in ('worker', 'w')
-            jobs = [runner(mdf, i, chunksize, applyfn, outcoll, worker_resolves_mdf)
-                    for i, mdf in enumerate(chunks)]
-            p._backend._job_count = len(jobs)
-            if verbose:
-                print("Submitting {} tasks".format(len(jobs)))
-            # finally submit
-            p(jobs)
-        return outcoll
-
-    def _get_cursor(self, pipeline=None, use_cache=True):
-        if getattr(self, '_pyapply_opts', None):
-            result = self._do_transform().find()
-        else:
-            result = super()._get_cursor(pipeline=pipeline, use_cache=use_cache)
-        return result
 
     def persist(self, name=None, store=None, append=False, local=False):
         """
@@ -138,46 +108,76 @@ class ParallelMixin:
         Returns:
             Metadata of persisted dataset
         """
-        self._pyapply_opts = getattr(self, '_pyapply_opts', {})
-        # -- .transform() active
-        if self._pyapply_opts:
-            meta = None
-            if name and store:
-                coll = store.collection(name)
-                if coll.name == self.collection.name:
-                    raise ValueError('persist() must be to a different collection than already existing')
-                try:
-                    if not append:
-                        store.drop(name, force=True)
-                    meta = store.put(coll, name)
-                except:
-                    print("WARNING please upgrade omegaml to support accessing collections")
-                else:
-                    # _do_transform expects the collection name, not the store's name
-                    name = coll.name
-            self._pyapply_opts.update(dict(outname=name, append=append))
-            coll = self._do_transform()
-            result = meta or self.__class__(coll, **self._getcopy_kwargs())
-        # -- run with noop in parallel
-        elif not local and getattr(self, 'apply_fn', None) is None and name:
-            # convenience, instead of .value call mdf.persist('name', store=om.datasets)
-            result = self.transform().persist(name=name, store=store, append=append)
-        # -- some other action is active, e.g. groupby, apply
-        elif local or (name and store):
-            print("warning: resolving the result of aggregation locally before storing")
-            value = self.value
-            result = store.put(value, name, append=append)
-        else:
-            result = super().persist()
+        assert self._transform is not None
+        outname, meta, outcoll = self._generate_outcoll(name, store, append)
+        self._transform.run(outcoll, local=local)
+        result = meta or self.__class__(outcoll, **self._getcopy_kwargs())
         return result
 
+    def _generate_outcoll(self, name, store, append):
+        meta = None
+        if name and store:
+            coll = store.collection(name)
+            if coll.name == self.collection.name:
+                raise ValueError('persist() must be to a different collection than already existing')
+            try:
+                if not append:
+                    store.drop(name, force=True)
+                meta = store.put(coll, name)
+            except:
+                print("WARNING please upgrade omegaml to support accessing collections")
+            else:
+                # _do_transform expects the collection name, not the store's name
+                name = coll.name
+        return name, meta, coll
 
-def pyappply_nop_transform(ldf):
+
+class MTransform:
+    def __init__(self, in_lazy, fn=None, n_jobs=-2, maxobs=None,
+                 chunksize=50000, chunkfn=None,
+                 resolve='worker'):
+        self.applyfn = fn or transform_nop
+        self.n_jobs = n_jobs
+        self.chunksize = chunksize
+        self.maxobs = maxobs
+        self.in_lazy = in_lazy
+        self.resolve = resolve
+        self.chunkfn = chunkfn or self._chunker
+
+    def run(self, out_lazy=None, local=False, verbose=0):
+        # setup mdf and parameters
+        # prepare for serialization to remote worker
+        out_lazy = out_lazy
+        actual_njobs = self.n_jobs if not local else 1
+        with Parallel(n_jobs=actual_njobs, backend='omegaml',
+                      verbose=verbose) as p:
+            # run in parallel
+            # -- chunks is the generator that yields serializable chunks
+            # -- runner is the delayed chunk processing function
+            # -- jobs is the list of all chunks
+            chunks = self.chunkfn(self.in_lazy, self.chunksize, self.maxobs)
+            runner = delayed(transform_process_chunk)
+            worker_resolves_mdf = self.resolve in ('worker', 'w')
+            jobs = [runner(mdf, i, self.chunksize, self.applyfn, out_lazy, worker_resolves_mdf)
+                    for i, mdf in enumerate(chunks)]
+            p._backend._job_count = len(jobs)
+            if verbose:
+                print("Submitting {} tasks".format(len(jobs)))
+            # finally submit
+            p(jobs)
+        return self.out_lazy
+
+    def _chunker(self, in_lazy, chunksize, maxobs):
+        for chunkdf in in_lazy.iterchunks(chunksize=chunksize):
+            yield chunkdf
+
+
+def transform_nop(ldf):
     # default transform that does no transformations
     pass
 
 
-def pyapply_process_chunk(mdf, i, chunksize, applyfn, outcoll, worker_resolves):
+def transform_process_chunk(mdf, i, chunksize, applyfn, outcoll, worker_resolves):
     # chunk processor
     import pandas as pd
     from inspect import signature

@@ -1,4 +1,5 @@
 from ._version import version
+from .runtimes import OmegaRuntime
 from .store.logging import OmegaSimpleLogger
 
 
@@ -59,7 +60,6 @@ class Omega(object):
                               **kwargs)
 
     def _make_runtime(self, celeryconf):
-        from omegaml.runtimes import OmegaRuntime
         return OmegaRuntime(self, bucket=self.bucket, defaults=self.defaults, celeryconf=celeryconf)
 
     def __getitem__(self, bucket):

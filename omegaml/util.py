@@ -443,6 +443,23 @@ class PickableCollection(object):
         return 'PickableCollection({})'.format(repr(self.collection))
 
 
+class PickableAlchemyCollection(PickableCollection):
+    def __getstate__(self):
+        return {
+            'name': self.name,
+            'url': repr(self.engine.url)
+        }
+
+    def __setstate__(self, state):
+        import sqlalchemy
+        engine = sqlalchemy.create_engine(state['url'])
+        collection = engine.connect()
+        super(PickableCollection, self).__setattr__('collection', collection)
+
+    def __repr__(self):
+        return 'PickableAlchemyCollection({})'.format(repr(self.collection))
+
+
 def extend_instance(obj, cls, *args, **kwargs):
     """Apply mixins to a class instance after creation"""
     # source https://stackoverflow.com/a/31075641

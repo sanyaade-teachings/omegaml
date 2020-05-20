@@ -138,7 +138,7 @@ class SQLAlchemyBackend(BaseDataBackend):
         """
         meta = self.data_store.metadata(name)
         connection_str = meta.kind_meta.get('sqlalchemy_connection')
-        table = table
+        table = table or meta.kind_meta.get('table')
         sql = sql or meta.kind_meta.get('sql') or self._default_sql(table)
         chunksize = chunksize or meta.kind_meta.get('chunksize')
         keep = getattr(self.data_store.defaults, 'SQLALCHEMY_ALWAYS_CACHE',
@@ -156,14 +156,14 @@ class SQLAlchemyBackend(BaseDataBackend):
                 raise KeyError('{e}, specify sqlvars= to build query >{sql}<'.format(**locals()))
             kwargs = meta.kind_meta.get('kwargs') or {}
             kwargs.update(kwargs)
-            if not lazy:
-                result = pd.read_sql(sql, connection, chunksize=chunksize, index_col=index_cols, **kwargs)
-            else:
+            if lazy:
                 # lazy returns a MTable
-                collection = MRelationalCollection(sql, connection)
+                collection = MRelationalCollection(sql, connection, table=table)
                 result = MTable(collection)
-            if not keep:
-                connection.close()
+            else:
+                result = pd.read_sql(sql, connection, chunksize=chunksize, index_col=index_cols, **kwargs)
+                if not keep:
+                    connection.close()
             return result
         return connection
 
