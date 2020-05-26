@@ -105,7 +105,7 @@ class OmegaDeferredInstance(object):
         try:
             omega = setup_from_config()
         except SystemError:
-            omega = Omega(mongo_url=None, bucket=bucket, celeryconf=None)
+            omega = Omega(mongo_url=mongo_url, bucket=bucket, celeryconf=celeryconf)
         if not self.initialized:
             self.initialized = True
             self.omega = omega
