@@ -3,7 +3,7 @@ VERSION=$(shell cat omegaml/VERSION)
 PIPVERSION=$(shell cat omegaml/VERSION | sed 's/-//')
 
 test:
-	unset DJANGO_SETTINGS_MODULE && nosetests
+	unset DJANGO_SETTINGS_MODULE && nosetests -v
 
 dist:
 	: "run setup.py sdist bdist_wheel"

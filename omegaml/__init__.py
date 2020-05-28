@@ -2,8 +2,8 @@ from __future__ import absolute_import
 
 import logging
 
-from omegaml.util import load_class, settings
 import omegaml.defaults as _base_config
+from omegaml.util import load_class, settings
 
 logger = logging.getLogger(__file__)
 

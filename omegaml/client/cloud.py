@@ -1,9 +1,8 @@
 import os
-
 import six
 import yaml
 
-from omegaml.client.userconf import get_omega_from_apikey
+from omegaml.client.userconf import get_omega_from_apikey, ensure_api_url
 from omegaml.client.util import protected
 from omegaml.omega import Omega as CoreOmega
 from omegaml.runtimes import OmegaRuntime
@@ -82,9 +81,9 @@ class OmegaCloudRuntime(OmegaRuntime):
 def setup(userid=None, apikey=None, api_url=None, qualifier=None, bucket=None):
     # from now on, link OmegaCloud implementation as the default
     import omegaml as om
-    api_url = api_url or os.environ.get('OMEGA_RESTAPI_URL') or 'https://hub.omegaml.io'
+    api_url = ensure_api_url(api_url)
     om.Omega = OmegaCloud
-    om.get_omega_for_task = lambda *args, **kwargs: setup(*args, **kwargs)
+    om.get_omega_for_task = lambda task: setup(userid=userid, apikey=apikey, qualifier=qualifier, bucket=bucket)
     om = get_omega_from_apikey(userid, apikey, api_url=api_url, qualifier=qualifier, view=False)
     return om[bucket]
 

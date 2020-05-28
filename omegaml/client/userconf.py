@@ -6,12 +6,16 @@ import yaml
 
 from omegaml.client.auth import OmegaRestApiAuth, OmegaRuntimeAuthentication
 
+def ensure_api_url(api_url, defaults):
+    api_url_default = os.environ.get('OMEGA_RESTAPI_URL') or 'https://hub.omegaml.io'
+    api_url = api_url or getattr(defaults, 'OMEGA_RESTAPI_URL', api_url_default)
+    return api_url
 
 def get_user_config_from_api(api_auth, api_url=None, requested_userid=None, view=False):
     # safe way to talk to either the remote API or the in-process test server
     from omegaml import settings
     defaults = settings()
-    api_url = api_url or os.environ.get('OMEGA_RESTAPI_URL') or 'https://hub.omegaml.io'
+    api_url = ensure_api_url(api_url, defaults)
     api_url += '/api/v1/config/'
     api_url = api_url.replace('//api', '/api')
     query = []
@@ -26,7 +30,7 @@ def get_user_config_from_api(api_auth, api_url=None, requested_userid=None, view
         server = requests
         server_kwargs = dict(auth=api_auth)
         deserialize = lambda resp: resp.json()
-    elif any('test' in v for v in sys.argv):
+    elif api_url.startswith('test') or any('test' in v for v in sys.argv):
         # test support
         import json
         from tastypie.test import TestApiClient
@@ -65,7 +69,7 @@ def get_omega_from_apikey(userid, apikey, api_url=None, requested_userid=None,
 
     defaults = DefaultsContext(settings())
     qualifier = qualifier or 'default'
-    api_url = api_url or os.environ.get('OMEGA_RESTAPI_URL') or 'https://hub.omegaml.io'
+    api_url = ensure_api_url(api_url, defaults)
     if api_url.startswith('http') or any('test' in v for v in sys.argv):
         api_auth = OmegaRestApiAuth(userid, apikey)
         configs = get_user_config_from_api(api_auth, api_url=api_url,
@@ -111,7 +115,7 @@ def save_userconfig_from_apikey(configfile, userid, apikey, api_url=None, reques
                                 view=False):
     from omegaml import settings
     defaults = settings()
-    api_url = api_url or os.environ.get('OMEGA_RESTAPI_URL') or 'https://hub.omegaml.io'
+    api_url = ensure_api_url(api_url, defaults)
     with open(configfile, 'w') as fconfig:
         auth = OmegaRestApiAuth(userid, apikey)
         configs = get_user_config_from_api(auth,

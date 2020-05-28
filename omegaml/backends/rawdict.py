@@ -1,8 +1,8 @@
-from pandas.io.json import json_normalize
 from pymongo.collection import Collection
 
 from omegaml.backends.basedata import BaseDataBackend
 from omegaml.mdataframe import MDataFrame
+from omegaml.util import json_normalize
 
 
 class PandasRawDictBackend(BaseDataBackend):

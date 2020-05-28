@@ -83,7 +83,7 @@ import six
 import tempfile
 from datetime import datetime
 from mongoengine.connection import disconnect, \
-    connect
+    connect, _connections, get_connection
 from mongoengine.errors import DoesNotExist
 from mongoengine.fields import GridFSProxy
 from six import iteritems
@@ -102,7 +102,7 @@ class OmegaStore(object):
     The storage backend for models and data
     """
 
-    def __init__(self, mongo_url=None, bucket=None, prefix=None, kind=None, defaults=None):
+    def __init__(self, mongo_url=None, bucket=None, prefix=None, kind=None, defaults=None, dbalias=None):
         """
         :param mongo_url: the mongourl to use for the gridfs
         :param bucket: the mongo collection to use for gridfs
@@ -122,6 +122,7 @@ class OmegaStore(object):
         # otherwise Metadata will already have a connection and not use
         # the one provided in override_settings
         self._db = None
+        self._dbalias = dbalias
         # add backends and mixins
         self._apply_mixins()
         # register backends
@@ -180,33 +181,30 @@ class OmegaStore(object):
         #
         # use an instance specific alias, note that access to Metadata and
         # QueryCache must pass the very same alias
-        self._dbalias = alias = 'omega-{}'.format(uuid4().hex)
+        self._dbalias = alias = self._dbalias or 'omega-{}'.format(uuid4().hex)
         # always disconnect before registering a new connection because
         # connect forgets all connection settings upon disconnect WTF?!
-        disconnect(alias)
-        connection = connect(alias=alias, db=self.database_name,
-                             host=host,
-                             username=username,
-                             password=password,
-                             connect=False,
-                             authentication_source='admin',
-                             serverSelectionTimeoutMS=2500,
-                             **self.defaults.OMEGA_MONGO_SSL_KWARGS,
-                             )
+        if alias not in _connections:
+            disconnect(alias)
+            connection = connect(alias=alias, db=self.database_name,
+                                 host=host,
+                                 username=username,
+                                 password=password,
+                                 connect=False,
+                                 authentication_source='admin',
+                                 serverSelectionTimeoutMS=2500,
+                                 **self.defaults.OMEGA_MONGO_SSL_KWARGS,
+                                 )
+        else:
+            connection = get_connection(alias)
         self._db = getattr(connection, self.database_name)
-        # mongoengine 0.15.0 connection setup is seriously broken -- it does
-        # not remember username/password on authenticated connections
-        # so we reauthenticate here
-        if username and password:
-            self._db.logout()
-            self._db.authenticate(username, password, source='admin')
         return self._db
 
     @property
     def _Metadata(self):
         if self._Metadata_cls is None:
             # hack to localize metadata
-            self.mongodb
+            db = self.mongodb
             self._Metadata_cls = make_Metadata(db_alias=self._dbalias,
                                                collection=self._fs_collection)
         return self._Metadata_cls

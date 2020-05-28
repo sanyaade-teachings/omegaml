@@ -18,6 +18,14 @@ try:
 except:
     from urllib import parse as urlparse
 
+# support pandas < 1.0
+try:
+    from pandas import json_normalize
+except:
+    from pandas.io.json import json_normalize
+json_normalize = json_normalize
+
+# reset global settings
 __settings = None
 
 
