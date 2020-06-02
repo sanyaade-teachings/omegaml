@@ -96,10 +96,9 @@ OMEGA_STORE_BACKENDS_SQL = {
     'sqlalchemy.conx': 'omegaml.backends.sqlalchemy.SQLAlchemyBackend',
 }
 #: supported frameworks
+OMEGA_FRAMEWORKS = os.environ.get('OMEGA_FRAMEWORKS', 'scikit-learn').split(',')
 if is_test_run:
     OMEGA_FRAMEWORKS = ('scikit-learn', 'tensorflow', 'keras', 'dash')
-else:
-    OMEGA_FRAMEWORKS = os.environ.get('OMEGA_FRAMEWORKS', '').split(',') or ('scikit-learn',)
 
 #: storage mixins
 OMEGA_STORE_MIXINS = [
@@ -269,7 +268,7 @@ def locate_config_file(configfile=OMEGA_CONFIG_FILE):
     return None
 
 
-def load_user_extensions(extensions=OMEGA_USER_EXTENSIONS, vars=globals()):
+def load_user_extensions(vars=globals()):
     """
     user extensions are extensions to settings
 
@@ -292,6 +291,9 @@ def load_user_extensions(extensions=OMEGA_USER_EXTENSIONS, vars=globals()):
     Returns:
         None
     """
+    extensions = vars.get('OMEGA_USER_EXTENSIONS')
+    if extensions is None:
+        return
     for k, v in extensions.items():
         omvar = vars.get(k)
         try:
@@ -313,8 +315,26 @@ def load_user_extensions(extensions=OMEGA_USER_EXTENSIONS, vars=globals()):
                    'expected type {omvar_type} got {k_type}').format(**locals())
             raise ValueError(msg)
 
+def load_framework_support(vars=globals()):
+    # load framework-specific backends
+    # -- note we do this here to ensure this happens after config updates
+    if 'tensorflow' in vars['OMEGA_FRAMEWORKS'] and tensorflow_available():
+        #: tensorflow backend
+        # https://stackoverflow.com/a/38645250
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = os.environ.get('TF_CPP_MIN_LOG_LEVEL') or '3'
+        logging.getLogger('tensorflow').setLevel(logging.ERROR)
+        vars['OMEGA_STORE_BACKENDS'].update(vars['OMEGA_STORE_BACKENDS_TENSORFLOW'])
+    #: keras backend
+    if 'keras' in vars['OMEGA_FRAMEWORKS'] and keras_available():
+        vars['OMEGA_STORE_BACKENDS'].update(vars['OMEGA_STORE_BACKENDS_KERAS'])
+    #: sqlalchemy backend
+    if module_available('sqlalchemy'):
+        vars['OMEGA_STORE_BACKENDS'].update(vars['OMEGA_STORE_BACKENDS_SQL'])
+    #: dash backend
+    if 'dash' in OMEGA_FRAMEWORKS and module_available('dashserve'):
+        vars['OMEGA_STORE_BACKENDS'].update(vars['OMEGA_STORE_BACKENDS_DASH'])
 
-# -- test
+# -- test support
 # this is to avoid using production settings during test
 if not is_cli_run and is_test_run:
     OMEGA_MONGO_URL = OMEGA_MONGO_URL.replace('/omega', '/testdb')
@@ -326,30 +346,12 @@ else:
     OMEGA_CONFIG_FILE = locate_config_file()
     update_from_config(globals(), config_file=OMEGA_CONFIG_FILE)
     update_from_env(globals())
-
     if is_cli_run:
         # be les
         import warnings
 
         warnings.filterwarnings("ignore", category=FutureWarning)
 
-# load framework-specific backends
-# -- note we do this here to ensure this happens after config updates
-if 'tensorflow' in OMEGA_FRAMEWORKS and tensorflow_available():
-    #: tensorflow backend
-    # https://stackoverflow.com/a/38645250
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = os.environ.get('TF_CPP_MIN_LOG_LEVEL') or '3'
-    logging.getLogger('tensorflow').setLevel(logging.ERROR)
-    OMEGA_STORE_BACKENDS.update(OMEGA_STORE_BACKENDS_TENSORFLOW)
-#: keras backend
-if 'keras' in OMEGA_FRAMEWORKS and keras_available():
-    OMEGA_STORE_BACKENDS.update(OMEGA_STORE_BACKENDS_KERAS)
-#: sqlalchemy backend
-if module_available('sqlalchemy'):
-    OMEGA_STORE_BACKENDS.update(OMEGA_STORE_BACKENDS_SQL)
-#: dash backend
-if 'dash' in OMEGA_FRAMEWORKS and module_available('dashserve'):
-    OMEGA_STORE_BACKENDS.update(OMEGA_STORE_BACKENDS_DASH)
-# load user extensions if any
-if OMEGA_USER_EXTENSIONS is not None:
-    load_user_extensions(OMEGA_USER_EXTENSIONS)
+# load extensions, always last step to ensure we have user configs loaded
+load_framework_support()
+load_user_extensions()

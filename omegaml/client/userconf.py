@@ -1,10 +1,9 @@
 import os
-
 import sys
-
 import yaml
 
 from omegaml.client.auth import OmegaRestApiAuth, OmegaRuntimeAuthentication
+
 
 def ensure_api_url(api_url, defaults):
     api_url_default = os.environ.get('OMEGA_RESTAPI_URL') or 'https://hub.omegaml.io'
@@ -65,9 +64,8 @@ def get_omega_from_apikey(userid, apikey, api_url=None, requested_userid=None,
     """
     from omegaml import Omega
     from omegaml import settings, _base_config
-    from omegaml.util import DefaultsContext
 
-    defaults = DefaultsContext(settings())
+    defaults = settings()
     qualifier = qualifier or 'default'
     api_url = ensure_api_url(api_url, defaults)
     if api_url.startswith('http') or any('test' in v for v in sys.argv):
@@ -84,7 +82,10 @@ def get_omega_from_apikey(userid, apikey, api_url=None, requested_userid=None,
         config = configs.get(qualifier, configs)
     else:
         config = configs[qualifier]
+    # update
     _base_config.update_from_dict(config, attrs=defaults)
+    _base_config.load_framework_support(defaults)
+    _base_config.load_user_extensions(defaults)
     auth = OmegaRuntimeAuthentication(userid, apikey, qualifier)
     om = Omega(defaults=defaults, auth=auth)
     # update config to reflect request

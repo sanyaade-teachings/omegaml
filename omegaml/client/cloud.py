@@ -81,7 +81,7 @@ class OmegaCloudRuntime(OmegaRuntime):
 def setup(userid=None, apikey=None, api_url=None, qualifier=None, bucket=None):
     # from now on, link OmegaCloud implementation as the default
     import omegaml as om
-    api_url = ensure_api_url(api_url)
+    api_url = ensure_api_url(api_url, om.defaults)
     om.Omega = OmegaCloud
     om.get_omega_for_task = lambda task: setup(userid=userid, apikey=apikey, qualifier=qualifier, bucket=bucket)
     om = get_omega_from_apikey(userid, apikey, api_url=api_url, qualifier=qualifier, view=False)

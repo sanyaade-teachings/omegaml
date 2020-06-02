@@ -418,7 +418,7 @@ class MDataFrame(object):
         # FIXME inefficient. make MDataFrame a drop-in replacement for any numpy ndarray
         # this evaluates every single time
         if self._evaluated is None:
-            self._evaluated = array = self.value.as_matrix()
+            self._evaluated = array = self.value.values()
         else:
             array = self._evaluated
         return array

@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import warnings
+from copy import deepcopy
 from importlib import import_module
 
 import logging
@@ -107,8 +108,10 @@ def settings(reload=False):
         for k in dir(omdefaults):
             if k.isupper() and not hasattr(defaults, k):
                 setattr(defaults, k, getattr(omdefaults, k))
-    __settings = defaults
-    return DefaultsContext(__settings)
+    __settings = DefaultsContext(defaults)
+    omdefaults.load_framework_support(vars=__settings)
+    omdefaults.load_user_extensions(vars=__settings)
+    return __settings
 
 
 def override_settings(**kwargs):
@@ -555,18 +558,49 @@ def calltrace(obj):
 
 
 class DefaultsContext(object):
+    """
+    om.defaults as set for a particular Omega() instance
+
+    Usage:
+        defaults = DefaultsContext(source)
+
+        # attribute access
+        defaults.SOME_VARIABLE
+        defaults['SOME_VARIABLE']
+        defaults.get('SOME_VARIABLE', default=None)
+
+        were source is a module or a settings object (any object with
+        any number of .UPPERCASE_VARIABLE attributes). Source will be
+        deep-copied to ensure DefaultsContext cannot be changed by external
+        references.
+    """
     def __init__(self, source):
         for k in dir(source):
             if k.isupper():
-                setattr(self, k, getattr(source, k))
+                value = getattr(source, k)
+                setattr(self, k, deepcopy(value))
 
     def __iter__(self):
         for k in dir(self):
             if k.startswith('OMEGA') and k.isupper():
                 yield k, getattr(self, k)
 
+    def __getitem__(self, k):
+        if k in dir(self):
+            return getattr(self, k)
+        raise KeyError(k)
+
+    def __setitem__(self, k, v):
+        setattr(k, v)
+
+    def get(self, k, default=None):
+        try:
+            return self[k]
+        except KeyError:
+            return default
+
     def __repr__(self):
-        return '{}'.format(dict(self))
+        return 'DefaultsContext({})'.format(dict(self))
 
 
 def ensure_json_serializable(v):
