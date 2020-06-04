@@ -91,8 +91,6 @@ class OmegaSecureAuthenticationEnv(AuthenticationEnv):
                                          and auth != default_auth)
         defaults = settings()
 
-        #import pdb; pdb.set_trace()
-
         if is_auth_provided(auth):
             if isinstance(auth, (list, tuple)):
                 # we get a serialized tuple, recreate auth object
@@ -114,7 +112,7 @@ class OmegaSecureAuthenticationEnv(AuthenticationEnv):
                     'Default task authentication is not allowed, got {}'.format(auth))
         else:
             raise ValueError(
-                'need authentication tupleas (userid, apikey, qualifier), got {}'.format(auth))
+                'missing authentication tuple as (userid, apikey, qualifier), got {}'.format(auth))
         return om
 
     @classmethod

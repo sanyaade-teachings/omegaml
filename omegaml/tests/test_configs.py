@@ -54,7 +54,7 @@ class ConfigurationTests(TestCase):
         import omegaml as om
         from omegaml.util import settings
         # check we get default without patching
-        defaults = settings()
+        defaults = settings(reload=True)
         setup = om.setup
         with patch.object(defaults, 'OMEGA_MONGO_URL') as mock:
             defaults.OMEGA_MONGO_URL = 'foo'
@@ -83,6 +83,8 @@ class ConfigurationTests(TestCase):
                 self.assertEqual(om.datasets.mongo_url, 'foo')
                 om = get_omega_from_apikey('foo', 'bar')
                 self.assertEqual(om.datasets.mongo_url, 'updated-foo')
+        # restore defaults
+        defaults = settings(reload=True)
         om = setup()
         self.assertNotEqual(om.datasets.mongo_url, 'foo')
 

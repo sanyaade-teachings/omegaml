@@ -65,7 +65,7 @@ def get_omega_from_apikey(userid, apikey, api_url=None, requested_userid=None,
     from omegaml import Omega
     from omegaml import settings, _base_config
 
-    defaults = settings()
+    defaults = settings(reload=True)
     qualifier = qualifier or 'default'
     api_url = ensure_api_url(api_url, defaults)
     if api_url.startswith('http') or any('test' in v for v in sys.argv):

@@ -591,7 +591,7 @@ class DefaultsContext(object):
         raise KeyError(k)
 
     def __setitem__(self, k, v):
-        setattr(k, v)
+        setattr(self, k, v)
 
     def get(self, k, default=None):
         try:

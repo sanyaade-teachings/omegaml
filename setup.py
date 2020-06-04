@@ -5,9 +5,6 @@ from setuptools import setup, find_packages
 README = open(os.path.join(os.path.dirname(__file__), 'README.rst')).read()
 version = open(os.path.join(os.path.dirname(__file__), 'omegaml', 'VERSION')).read()
 
-# allow setup.py to be run from any path
-os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
-
 # extras
 hdf_deps = ['tables>=3.2.2']
 tf_deps = ['tensorflow==1.15.0']

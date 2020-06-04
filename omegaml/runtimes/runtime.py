@@ -26,7 +26,7 @@ class CeleryTask(object):
             kwargs (dict): optional, the kwargs to pass to apply_async
         """
         self.task = task
-        self.kwargs = kwargs
+        self.kwargs = dict(kwargs)
 
     def _apply_kwargs(self, task_kwargs, celery_kwargs):
         # update task_kwargs from runtime's passed on kwargs

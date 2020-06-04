@@ -97,7 +97,7 @@ class JobTests(TestCase):
 
     def test_run_job_timeout(self):
         """
-        test running a valid job
+        test running a job that times out
         """
         om = self.om
         # create a long-running notebook
