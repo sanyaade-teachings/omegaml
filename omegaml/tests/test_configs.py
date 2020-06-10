@@ -56,10 +56,10 @@ class ConfigurationTests(TestCase):
         # check we get default without patching
         defaults = settings(reload=True)
         setup = om.setup
-        with patch.object(defaults, 'OMEGA_MONGO_URL') as mock:
-            defaults.OMEGA_MONGO_URL = 'foo'
+        with patch('omegaml._base_config') as defaults:
+            defaults.MY_OWN_SETTING = 'foo'
             om = om.setup()
-            self.assertEqual(om.datasets.mongo_url, 'foo')
+            self.assertEqual(om.defaults.MY_OWN_SETTING, 'foo')
         # reset om.datasets to restored defaults
         om = setup()
         self.assertNotEqual(om.datasets.mongo_url, 'foo')
@@ -71,17 +71,22 @@ class ConfigurationTests(TestCase):
                 'objects': [
                    {
                         'data': {
-                            'OMEGA_MONGO_URL': 'updated-foo'
+                            'OMEGA_MONGO_URL': 'updated-foo',
+                            'OMEGA_MY_OWN_SETTING': 'updated-foo',
                         }
                     }
                 ]
             }
-            with patch.object(defaults, 'OMEGA_MONGO_URL') as mock:
+            from omegaml import _base_config as _real_base_config
+            with patch('omegaml._base_config') as defaults:
                 from omegaml.client.userconf import get_omega_from_apikey
-                defaults.OMEGA_MONGO_URL = 'foo'
-                om = setup()
-                self.assertEqual(om.datasets.mongo_url, 'foo')
+                # link callbacks used by get_omega_from_api_key
+                defaults.update_from_dict = _real_base_config.update_from_dict
+                defaults.load_user_extensions = _real_base_config.load_user_extensions
+                defaults.load_framework_support = _real_base_config.load_framework_support
+                defaults.OMEGA_MY_OWN_SETTING = 'foo'
                 om = get_omega_from_apikey('foo', 'bar')
+                self.assertEqual(om.defaults.OMEGA_MY_OWN_SETTING, 'updated-foo')
                 self.assertEqual(om.datasets.mongo_url, 'updated-foo')
         # restore defaults
         defaults = settings(reload=True)

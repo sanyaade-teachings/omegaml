@@ -26,8 +26,8 @@ class OmegaCloud(CoreOmega):
         """
         Initialize the client API
         """
-        super(OmegaCloud, self).__init__(**kwargs)
         self.auth = auth
+        super(OmegaCloud, self).__init__(**kwargs)
 
     def _make_runtime(self, celeryconf):
         return OmegaCloudRuntime(self, bucket=self.bucket, defaults=self.defaults, celeryconf=celeryconf)

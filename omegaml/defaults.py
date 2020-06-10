@@ -33,13 +33,14 @@ OMEGA_USESSL = True if os.environ.get('OMEGA_USESSL') else False
 #: additional kwargs for mongodb SSL connections
 OMEGA_MONGO_SSL_KWARGS = {
     'ssl': OMEGA_USESSL,
+    'ssl_ca_certs': os.environ.get('CA_CERTS_PATH') if OMEGA_USESSL else None,
 }
 #: if set forces eager execution of runtime tasks
 OMEGA_LOCAL_RUNTIME = os.environ.get('OMEGA_LOCAL_RUNTIME', False)
 #: the celery broker name or URL
 OMEGA_BROKER = (os.environ.get('OMEGA_BROKER') or
                 os.environ.get('RABBITMQ_URL') or
-                'amqp://guest@127.0.0.1:5672//')
+                'amqp://admin:foobar@127.0.0.1:5672//')
 #: is the worker considered inside the same cluster as the client
 OMEGA_WORKER_INCLUSTER = False
 #: (deprecated) the collection used to store ipython notebooks
@@ -139,6 +140,7 @@ OMEGA_LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 # =========================================
 # ----- DO NOT MODIFY BELOW THIS LINE -----
 # =========================================
+# TODO move functions to util and make passing globals() explicit to avoid unintended side effects
 def update_from_config(vars=globals(), config_file=OMEGA_CONFIG_FILE):
     """
     update omegaml.defaults from configuration file
@@ -211,15 +213,6 @@ def update_from_dict(d, vars=globals(), attrs=None):
                 setattr(attrs, k, v)
             else:
                 vars[k] = v
-
-
-# load Enterprise Edition if available
-try:
-    from omegaee import eedefaults
-
-    update_from_obj(eedefaults, vars=globals())
-except Exception as e:
-    pass
 
 
 def locate_config_file(configfile=OMEGA_CONFIG_FILE):

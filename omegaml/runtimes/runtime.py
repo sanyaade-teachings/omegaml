@@ -113,6 +113,14 @@ class OmegaRuntime(object):
         else:
             return False
 
+    def _sanitize_require(self, value):
+        # convert value into dict(label=value)
+        if isinstance(value, 'str'):
+            return dict(label=value)
+        if isinstance(value, (list, tuple)):
+            return dict(*value)
+        return value
+
     def require(self, label=None, always=False, **kwargs):
         """
         specify requirements for the task execution
@@ -147,7 +155,7 @@ class OmegaRuntime(object):
             require (dict): routing requirements for this job
         """
         from omegaml.runtimes.modelproxy import OmegaModelProxy
-        self.require(**require) if require else None
+        self.require(**self._sanitize_require(require)) if require else None
         return OmegaModelProxy(modelname, runtime=self)
 
     def job(self, jobname, require=None):
@@ -157,7 +165,7 @@ class OmegaRuntime(object):
         Args:
             require (dict): routing requirements for this job
         """
-        self.require(**require) if require else None
+        self.require(**self._sanitize_require(require)) if require else None
         return OmegaJobProxy(jobname, runtime=self)
 
     def script(self, scriptname, require=None):
@@ -167,7 +175,7 @@ class OmegaRuntime(object):
         Args:
             require (dict): routing requirements for this job
         """
-        self.require(**require) if require else None
+        self.require(**self._sanitize_require(require)) if require else None
         return OmegaScriptProxy(scriptname, runtime=self)
 
     def task(self, name):

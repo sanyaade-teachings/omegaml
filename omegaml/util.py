@@ -624,3 +624,16 @@ def mkdirs(path):
     """
     if not os.path.exists(path):
         os.makedirs(path)
+
+
+def base_loader(_base_config):
+    try:
+        from omegaee import omega as _omega
+        from omegaee import eedefaults as _base_config_ee
+    except Exception as e:
+        from omegaml import omega as _omega
+    else:
+        _base_config.update_from_obj(_base_config_ee, attrs=_base_config)
+    settings(reload=True)
+    return _omega
+
