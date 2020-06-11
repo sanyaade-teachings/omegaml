@@ -52,6 +52,9 @@ thirdparty:
 release-tensorflow: dist
 	scripts/distrelease.sh --distname omegaml-tensorflow --version ${VERSION}-gpu-jupyter --push
 
+release-pytorch: dist
+	scripts/distrelease.sh --distname omegaml-pytorch --version ${VERSION}-gpu-jupyter --push
+
 old:
 	rm -rf dist/staging && mkdir -p dist/staging
 	cp -r scripts/docker/tensorflow-gpu dist/staging

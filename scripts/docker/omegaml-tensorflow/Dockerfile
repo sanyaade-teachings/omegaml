@@ -12,9 +12,8 @@ ENV  pypi=$pypi
 ARG  NB_UID=1000
 # system install
 USER root
-COPY ../omegaml/packages /var/packages
 COPY . /app
 RUN pip install --upgrade pip -q
-RUN pip install -f /var/packages -i $pypi --extra-index-url https://pypi.org/simple/ --pre omegaml[all] jupyterhub jupyterlab
+RUN pip install -f /app/packages -i $pypi --extra-index-url https://pypi.org/simple/ --pre omegaml[all] jupyterhub jupyterlab
 RUN /app/scripts/setupnb.sh
 USER $NB_UID

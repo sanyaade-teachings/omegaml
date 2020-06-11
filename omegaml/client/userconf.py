@@ -1,6 +1,7 @@
 import os
 import sys
 import yaml
+from urllib3 import Retry
 
 from omegaml.client.auth import OmegaRestApiAuth, OmegaRuntimeAuthentication
 
@@ -9,6 +10,19 @@ def ensure_api_url(api_url, defaults):
     api_url_default = os.environ.get('OMEGA_RESTAPI_URL') or 'https://hub.omegaml.io'
     api_url = api_url or getattr(defaults, 'OMEGA_RESTAPI_URL', api_url_default)
     return api_url
+
+
+def session_backoff(retries=5):
+    import requests
+    from requests.adapters import HTTPAdapter
+    s = requests.Session()
+    retry = Retry(total=retries,
+                  backoff_factor=.1,
+                  status_forcelist=[500, 502, 503, 504])
+    s.mount('http://', HTTPAdapter(max_retries=retry))
+    s.mount('https://', HTTPAdapter(max_retries=retry))
+    return s
+
 
 def get_user_config_from_api(api_auth, api_url=None, requested_userid=None, view=False):
     # safe way to talk to either the remote API or the in-process test server
@@ -26,7 +40,7 @@ def get_user_config_from_api(api_auth, api_url=None, requested_userid=None, view
     # -- setup appropriate client API
     if api_url.startswith('http'):
         import requests
-        server = requests
+        server = session_backoff()
         server_kwargs = dict(auth=api_auth)
         deserialize = lambda resp: resp.json()
     elif api_url.startswith('test') or any('test' in v for v in sys.argv):
