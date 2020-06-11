@@ -1,11 +1,7 @@
 from __future__ import absolute_import
 
-from celery import Celery
-
-from omegaml.runtimes.jobproxy import OmegaJobProxy
-from omegaml.runtimes.scriptproxy import OmegaScriptProxy
-from omegaml.util import settings
 import logging
+from celery import Celery
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +65,8 @@ class OmegaRuntime(object):
     """
 
     def __init__(self, omega, bucket=None, defaults=None, celeryconf=None):
+        from omegaml.util import settings
+
         self.omega = omega
         defaults = defaults or settings()
         self.bucket = bucket
@@ -115,7 +113,7 @@ class OmegaRuntime(object):
 
     def _sanitize_require(self, value):
         # convert value into dict(label=value)
-        if isinstance(value, 'str'):
+        if isinstance(value, str):
             return dict(label=value)
         if isinstance(value, (list, tuple)):
             return dict(*value)
@@ -165,6 +163,8 @@ class OmegaRuntime(object):
         Args:
             require (dict): routing requirements for this job
         """
+        from omegaml.runtimes.jobproxy import OmegaJobProxy
+
         self.require(**self._sanitize_require(require)) if require else None
         return OmegaJobProxy(jobname, runtime=self)
 
@@ -175,6 +175,8 @@ class OmegaRuntime(object):
         Args:
             require (dict): routing requirements for this job
         """
+        from omegaml.runtimes.scriptproxy import OmegaScriptProxy
+
         self.require(**self._sanitize_require(require)) if require else None
         return OmegaScriptProxy(scriptname, runtime=self)
 

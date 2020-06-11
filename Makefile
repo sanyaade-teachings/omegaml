@@ -49,6 +49,17 @@ thirdparty:
 	pip-licenses > THIRDPARTY
 	python -m pylicenses
 
+release-tensorflow: dist
+	scripts/distrelease.sh --distname omegaml-tensorflow --version ${VERSION}-gpu-jupyter --push
+
+old:
+	rm -rf dist/staging && mkdir -p dist/staging
+	cp -r scripts/docker/tensorflow-gpu dist/staging
+	cp scripts/runtime dist/staging/docker/tensorflow-gpu/scripts
+	cp dist/*whl dist/staging/tensorflow-gpu/packages
+	cd dist/staging/tensorflow-gpu && docker build -t omegaml/omegaml-tf:${VERSION} .
+	docker push omegaml/omegaml-tf:${VERSION}
+
 help:
 		@echo -n "Common make targets"
 		@echo ":"

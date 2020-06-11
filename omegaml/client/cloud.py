@@ -62,6 +62,10 @@ class OmegaCloudRuntime(OmegaRuntime):
         return common
 
     @property
+    def auth(self):
+        return self.omega.auth
+
+    @property
     def auth_tuple(self):
         auth = self.omega.auth
         return auth.userid, auth.apikey, auth.qualifier

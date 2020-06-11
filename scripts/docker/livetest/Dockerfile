@@ -1,7 +1,7 @@
 FROM joyzoursky/python-chromedriver:3.7-selenium
 # chrome debug port https://developers.google.com/web/updates/2017/04/headless-chrome#frontend
 EXPOSE 9222/tcp
-ARG  pypi
+ARG  pypi="https://pypi.org/simple"
 ENV  pypi=$pypi
 WORKDIR /root
 COPY ./packages /var/packages
