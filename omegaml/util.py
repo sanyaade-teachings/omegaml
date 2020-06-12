@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import warnings
+from contextlib import contextmanager
 from copy import deepcopy
 from importlib import import_module
 
@@ -574,6 +575,7 @@ class DefaultsContext(object):
         deep-copied to ensure DefaultsContext cannot be changed by external
         references.
     """
+
     def __init__(self, source):
         for k in dir(source):
             if k.isupper():
@@ -637,3 +639,70 @@ def base_loader(_base_config):
     settings(reload=True)
     return _omega
 
+
+def markup(fname_or_stream, parsers=None):
+    """
+    a safe markup file reader, accepts json and yaml, returns a dict or a default
+
+    Usage:
+        # try, return None if not readable, will issue a warning in the log
+        data = markup(file-like).read()
+
+        # try, return some other default, will issue a warning in the log
+        data = markup(file-like).read(default={})
+
+        # try and fail
+        data = markup(file-like).read(on_error='fail')
+
+    Args:
+        fname_or_stream (None, str, file-like): any file-like, can be
+           any object that the parsers accept
+        parsers (list): the list of parsers, defaults to json.load, yaml.safe_load,
+           json.loads
+
+    Returns:
+        data parsed or default
+
+        markups.exceptions contains list of exceptions raised, if any
+    """
+    import json
+    import yaml
+
+    parsers = parsers or (json.load, yaml.safe_load, json.loads)
+
+    @contextmanager
+    def fopen(filein, *args, **kwargs):
+        # https://stackoverflow.com/a/55032634/890242
+        if isinstance(filein, str):  # filename
+            with open(filein, *args, **kwargs) as f:
+                yield f
+        else:  # file-like object
+            yield filein
+
+    throw = lambda ex: (_ for _ in ()).throw(ex)
+    exceptions = []
+
+    def read(on_error='warn', default=None, msg='could not read {}'):
+        if fname_or_stream is None:
+            return default
+        for fn in parsers:
+            with fopen(fname_or_stream) as fin:
+                try:
+                    if hasattr(fin, 'seek'):
+                        fin.seek(0)
+                    data = fn(fin)
+                except Exception as e:
+                    exceptions.append(e)
+                else:
+                    return data
+        # nothing worked so far
+        actions = {
+            'fail': lambda: throw(ValueError("Reading {} caused exceptions {}".format(fname_or_stream, exceptions))),
+            'warn': lambda: logging.warning(msg.format(fname_or_stream)) or default,
+            'silent': lambda: default,
+        }
+        return actions[on_error]()
+
+    markup.read = read
+    markup.exceptions = exceptions
+    return markup

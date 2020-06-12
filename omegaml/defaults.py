@@ -1,14 +1,14 @@
 from __future__ import absolute_import
 
-import logging
-import os
-import sys
 from os.path import basename
 
+import logging
+import os
 import six
+import sys
 import yaml
 
-from omegaml.util import tensorflow_available, keras_available, module_available
+from omegaml.util import tensorflow_available, keras_available, module_available, markup
 
 # determine how we're run
 is_cli_run = os.path.basename(sys.argv[0]) == 'om'
@@ -40,7 +40,7 @@ OMEGA_LOCAL_RUNTIME = os.environ.get('OMEGA_LOCAL_RUNTIME', False)
 #: the celery broker name or URL
 OMEGA_BROKER = (os.environ.get('OMEGA_BROKER') or
                 os.environ.get('RABBITMQ_URL') or
-                'amqp://admin:foobar@127.0.0.1:5672//')
+                'amqp://admin:foobar@localhost:5672//')
 #: is the worker considered inside the same cluster as the client
 OMEGA_WORKER_INCLUSTER = False
 #: (deprecated) the collection used to store ipython notebooks
@@ -150,13 +150,7 @@ def update_from_config(vars=globals(), config_file=OMEGA_CONFIG_FILE):
     :return:
     """
     # override from configuration file
-    userconfig = {}
-    if isinstance(config_file, six.string_types):
-        if os.path.exists(config_file):
-            with open(config_file, 'r') as fin:
-                userconfig = yaml.safe_load(fin)
-    elif hasattr(config_file, 'read'):
-        userconfig = yaml.safe_load(config_file)
+    userconfig = markup(config_file).read(default={}, msg='could not read config file {}')
     if userconfig:
         for k in [k for k in vars.keys() if k.startswith('OMEGA')]:
             value = userconfig.get(k, None) or vars[k]
@@ -285,6 +279,8 @@ def load_user_extensions(vars=globals()):
         None
     """
     extensions = vars.get('OMEGA_USER_EXTENSIONS')
+    if isinstance(extensions, str):
+        extensions = markup(extensions).read()
     if extensions is None:
         return
     for k, v in extensions.items():

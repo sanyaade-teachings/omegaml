@@ -6,3 +6,4 @@ mkdir -p /etc/ipython
 cp -r $OMEGA_BASEPATH/notebook/jupyter/* /etc/jupyter
 cp -r $OMEGA_BASEPATH/notebook/jupyter/* /etc/ipython
 chmod +x /app/scripts/omegajobs.sh
+touch /app/config.yml

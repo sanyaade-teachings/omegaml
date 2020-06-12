@@ -1,11 +1,12 @@
 FROM omegaml/omegaml-base
+ARG  pypi="https://pypi.org/simple"
+ENV  pypi=$pypi
+USER ROOT
+# system install
+USER root
+COPY . /app
+RUN pip install --upgrade pip -q
+RUN pip install -f /app/packages -i $pypi --extra-index-url https://pypi.org/simple/ --pre omegaml[all] jupyterhub jupyterlab
+RUN /app/scripts/setupnb.sh
 
-ADD ../../.. /app
-RUN conda install -y --file /app/conda-requirements.txt && \
-    conda clean --all
-RUN pip install --no-cache-dir -q -r /app/requirements.txt
-RUN mkdir -p ~/.jupyter && \
-    cp /app/omegaml/notebook/jupyter/*py ~/.jupyter && \
-    cd /app && pip install .[all] && \
-    touch /app/config.yml
 CMD ["jupyter", '--config-dir', '/app/.jupyter']

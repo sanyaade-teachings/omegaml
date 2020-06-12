@@ -76,7 +76,7 @@ setup(
         # https://github.com/tensorflow/tensorflow/issues/26691#issuecomment-525519742
         'absl-py>=0.8.1',
         'tqdm>=4.32.2',
-        'honcho==1.0.1', # not strictly required, but used in docker compose
+        'honcho>=1.0.1', # not strictly required, but used in docker compose
     ],
     extras_require={
         'graph': graph_deps,

@@ -28,13 +28,14 @@ fi
 export C_FORCE_ROOT=1
 export CELERY_Q=$runtimelabel
 # -- running in pod, use /app as a shared home
-if [[ -f "/app" ]]; then
+if [[ -d "/app" ]]; then
   export APPBASE="/app"
   export PYTHONPATH="/app/pylib/user:/app/pylib/base"
   export PYTHONUSERBASE="/app/pylib/user"
   export OMEGA_CONFIG_FILE="app/pylib/user/.omegaml/config.yml"
 else
   export APPBASE=$HOME
+  export OMEGA_CONFIG_FILE="$APPBASE/.omegaml/config.yml"
 fi
 if [[ ! -f $HOME/.jupyter/.omegaml ]]; then
     mkdir -p $HOME/.jupyter
@@ -46,7 +47,7 @@ if [[ ! -f $OMEGA_CONFIG_FILE ]]; then
     touch $OMEGA_CONFIG_FILE/config.yml
 fi
 # -- start worker and jupyterhub
-pip install --user jupyterhub
+pip install --user jupyterhub jupyterlab
 cd $HOME/.jupyter
 nohup honcho -d $APPBASE start worker >> worker.log 2>&1 &
 jupyterhub-singleuser --ip $ip --port $port $jydebug

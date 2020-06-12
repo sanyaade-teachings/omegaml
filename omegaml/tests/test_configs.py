@@ -25,7 +25,7 @@ class ConfigurationTests(TestCase):
         """
         cfgfile = six.StringIO(data)
         cfgfile.seek(0)
-        update_from_config(self.defaults, cfgfile)
+        update_from_config(vars=self.defaults, config_file=cfgfile)
         self.assertIn('OMEGA_MONGO_URL', self.defaults)
         self.assertEqual(self.defaults['OMEGA_MONGO_URL'], 'updated-foo')
         self.assertNotIn('NOTOMEGA_VALUE', self.defaults)
