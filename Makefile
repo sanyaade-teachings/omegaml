@@ -5,6 +5,10 @@ PIPVERSION=$(shell cat omegaml/VERSION | sed 's/-//')
 test:
 	unset DJANGO_SETTINGS_MODULE && nosetests -v
 
+sanity:
+	# quick sanity check -- avoid easy mistakes
+	unset DJANGO_SETTINGS_MODULE && python -m omegaml.client.cli cloud config
+
 dist:
 	: "run setup.py sdist bdist_wheel"
 	rm -rf ./dist/*
@@ -43,6 +47,10 @@ release-docker: dist
 	docker tag omegaml/omegaml:${VERSION} omegaml/latest
 	docker push omegaml/omegaml:${VERSION}
 	docker push omegaml/omegaml:latest
+
+candidate-docker: sanity dist
+	scripts/distrelease.sh --distname omegaml --version ${VERSION}
+	docker push omegaml/omegaml:${VERSION}
 
 thirdparty:
 	: "create THIRDPARTY & THIRDPARTY-LICENSES"

@@ -6,7 +6,6 @@ import logging
 import os
 import six
 import sys
-import yaml
 
 from omegaml.util import tensorflow_available, keras_available, module_available, markup
 
@@ -100,7 +99,8 @@ OMEGA_STORE_BACKENDS_SQL = {
 OMEGA_FRAMEWORKS = os.environ.get('OMEGA_FRAMEWORKS', 'scikit-learn').split(',')
 if is_test_run:
     OMEGA_FRAMEWORKS = ('scikit-learn', 'tensorflow', 'keras', 'dash')
-
+#: disable framework preloading, e.g. for web, jupyter
+OMEGA_DISABLE_FRAMEWORKS = os.environ.get('OMEGA_DISABLE_FRAMEWORKS')
 #: storage mixins
 OMEGA_STORE_MIXINS = [
     'omegaml.mixins.store.ProjectedMixin',
@@ -342,5 +342,5 @@ else:
         warnings.filterwarnings("ignore", category=FutureWarning)
 
 # load extensions, always last step to ensure we have user configs loaded
-load_framework_support()
+load_framework_support() if not OMEGA_DISABLE_FRAMEWORKS else None
 load_user_extensions()
