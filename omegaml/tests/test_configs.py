@@ -1,7 +1,7 @@
 from unittest import TestCase
 
-import six
 from mock import patch
+from six import StringIO
 
 from omegaml.defaults import update_from_config, update_from_obj, update_from_dict
 
@@ -23,9 +23,7 @@ class ConfigurationTests(TestCase):
         OMEGA_MONGO_URL: updated-foo
         NOTOMEGA_VALUE: some other value
         """
-        cfgfile = six.StringIO(data)
-        cfgfile.seek(0)
-        update_from_config(vars=self.defaults, config_file=cfgfile)
+        update_from_config(vars=self.defaults, config_file=StringIO(data))
         self.assertIn('OMEGA_MONGO_URL', self.defaults)
         self.assertEqual(self.defaults['OMEGA_MONGO_URL'], 'updated-foo')
         self.assertNotIn('NOTOMEGA_VALUE', self.defaults)
@@ -54,15 +52,21 @@ class ConfigurationTests(TestCase):
         import omegaml as om
         from omegaml.util import settings
         # check we get default without patching
-        defaults = settings(reload=True)
-        setup = om.setup
+        from omegaml import _base_config as _real_base_config
         with patch('omegaml._base_config') as defaults:
+            defaults = settings(reload=True)
+            # link callbacks used by get_omega_from_api_key
+            _real_base_config.update_from_obj(_real_base_config, attrs=defaults)
+            defaults.update_from_dict = _real_base_config.update_from_dict
+            defaults.load_user_extensions = lambda *args, **kwargs: None
+            defaults.load_framework_support = lambda *args, **kwargs: None
+            setup = om.setup
             defaults.MY_OWN_SETTING = 'foo'
             om = om.setup()
             self.assertEqual(om.defaults.MY_OWN_SETTING, 'foo')
-        # reset om.datasets to restored defaults
-        om = setup()
-        self.assertNotEqual(om.datasets.mongo_url, 'foo')
+            # reset om.datasets to restored defaults
+            om = setup()
+            self.assertNotEqual(om.datasets.mongo_url, 'foo')
         # now test we can change the default through config
         # we patch the actual api call to avoid having to set up the user db
         # the objective here is to test get_omega_from_apikey
@@ -77,13 +81,13 @@ class ConfigurationTests(TestCase):
                     }
                 ]
             }
-            from omegaml import _base_config as _real_base_config
             with patch('omegaml._base_config') as defaults:
                 from omegaml.client.userconf import get_omega_from_apikey
                 # link callbacks used by get_omega_from_api_key
+                _real_base_config.update_from_obj(_real_base_config, attrs=defaults)
                 defaults.update_from_dict = _real_base_config.update_from_dict
-                defaults.load_user_extensions = _real_base_config.load_user_extensions
-                defaults.load_framework_support = _real_base_config.load_framework_support
+                defaults.load_user_extensions = lambda *args, **kwargs: None
+                defaults.load_framework_support = lambda *args, **kwargs: None
                 defaults.OMEGA_MY_OWN_SETTING = 'foo'
                 om = get_omega_from_apikey('foo', 'bar')
                 self.assertEqual(om.defaults.OMEGA_MY_OWN_SETTING, 'updated-foo')

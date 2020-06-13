@@ -150,7 +150,7 @@ def update_from_config(vars=globals(), config_file=OMEGA_CONFIG_FILE):
     :return:
     """
     # override from configuration file
-    userconfig = markup(config_file).read(default={}, msg='could not read config file {}')
+    userconfig = markup(config_file, default={}, msg='could not read config file {}')
     if userconfig:
         for k in [k for k in vars.keys() if k.startswith('OMEGA')]:
             value = userconfig.get(k, None) or vars[k]
@@ -279,10 +279,7 @@ def load_user_extensions(vars=globals()):
         None
     """
     extensions = vars.get('OMEGA_USER_EXTENSIONS')
-    if isinstance(extensions, str):
-        extensions = markup(extensions).read()
-    if extensions is None:
-        return
+    extensions = markup(extensions) or {}
     for k, v in extensions.items():
         omvar = vars.get(k)
         try:

@@ -32,8 +32,10 @@ class Notebook:
     A simple driver for the notebook
     """
 
-    def __init__(self, browser):
+    def __init__(self, browser, user='admin', password='test'):
         self.browser = browser
+        self.user = user
+        self.password = password
         try:
             alert = browser.get_alert()
         except:
@@ -61,9 +63,10 @@ class Notebook:
 
     def login_hub(self):
         br = self.browser
-        br.find_by_id('username_input').first.fill('admin')
-        br.find_by_id('password_input').first.fill('test')
+        br.find_by_id('username_input').first.fill(self.user)
+        br.find_by_id('password_input').first.fill(self.password)
         br.click_link_by_id('login_submit')
+        br.visit(jburl('', self.user, self.password, nbstyle='tree'))
         assert br.is_element_present_by_id('ipython-main-app', wait_time=60)
         # check that there is actually a connection
         assert not br.is_text_present('Server error: Traceback', wait_time=5)
@@ -72,7 +75,7 @@ class Notebook:
     def login_nb(self):
         br = self.browser
         assert br.is_element_present_by_id('ipython-main-app', wait_time=2)
-        br.find_by_id('password_input').fill('omegamlisfun')
+        br.find_by_id('password_input').fill(self.password)
         br.find_by_id('login_submit').click()
         # check that there is actually a connection
         assert not br.is_text_present('Server error: Traceback', wait_time=2)
@@ -172,3 +175,7 @@ def get_admin_secrets(scope=None, keys=None):
     else:
         result = secrets
     return result
+
+def jburl(url, userid, nbstyle='tree'):
+    # provide a users notebook url to lab (new style) or tree (old style) notebook
+    return '{url}/user/{userid}/{nbstyle}'.format(**locals()).replace('//', '/')

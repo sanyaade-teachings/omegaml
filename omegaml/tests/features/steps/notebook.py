@@ -8,7 +8,7 @@ from omegaml.tests.features.util import Notebook
 def open_jupyter(ctx):
     br = ctx.browser
     br.visit(ctx.feature.jynb_url)
-    nb = Notebook(br)
+    nb = Notebook(br, password='omegamlisfun')
     if br.is_text_present('JupyterHub', wait_time=10):
         login_required = br.is_element_present_by_id('username_input', wait_time=30)
         if login_required:

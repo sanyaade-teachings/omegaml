@@ -13,7 +13,7 @@ import sys
 import tempfile
 import uuid
 from shutil import rmtree
-from six import string_types
+from six import string_types, StringIO
 
 try:
     import urlparse
@@ -640,69 +640,121 @@ def base_loader(_base_config):
     return _omega
 
 
-def markup(fname_or_stream, parsers=None):
+from io import StringIO
+
+from contextlib import contextmanager
+import re
+
+def markup(file_or_str, parsers=None, direct=True, on_error='warn', default=None, msg='could not read {}',
+           **kwargs):
     """
     a safe markup file reader, accepts json and yaml, returns a dict or a default
-
     Usage:
+        file_or_str = filename|file-like|markup-str
         # try, return None if not readable, will issue a warning in the log
-        data = markup(file-like).read()
-
+        data = markup(file_or_str)
         # try, return some other default, will issue a warning in the log
-        data = markup(file-like).read(default={})
-
+        data = markup(file_or_str, default={})
         # try and fail
-        data = markup(file-like).read(on_error='fail')
-
+        data = markup(file_or_str, on_error='fail')
     Args:
-        fname_or_stream (None, str, file-like): any file-like, can be
+        file_or_str (None, str, file-like): any file-like, can be
            any object that the parsers accept
         parsers (list): the list of parsers, defaults to json.load, yaml.safe_load,
            json.loads
-
+        direct (bool): if True returns the result, else returns markup (self). then use
+           .read() to actually read the contents
+        on_error (str): 'fail' raises a ValueError in case of error, 'warn' outputs a warning to the log,
+           and returns the default, 'silent' returns the default. Defaults to warn
+        default (obj): return the obj if the input is None or in case of on_error=warn or silent
+        **kwargs (dict): any kwargs passed on to read(), any entry that matches a parser
+            function's module name will be passed on to the parser
     Returns:
         data parsed or default
-
         markups.exceptions contains list of exceptions raised, if any
     """
+    # source: https://gist.github.com/miraculixx/900a28a94c375b7259b1f711b93417d3
     import json
     import yaml
+    import logging
 
     parsers = parsers or (json.load, yaml.safe_load, json.loads)
+    # path-like regex
+    # - \/?                  leading /, optional
+    # - (?P<path>\w+/?)*     any path-part followed by /, repeated 0 - n times
+    # - (?P<ext>(\w*\.?\w*)+ any file.ext, at least once
+    pathlike = lambda s: re.match(r"^\/?(?P<path>\w+/?)*(?P<ext>(\w*\.?\w*))$", s)
 
     @contextmanager
     def fopen(filein, *args, **kwargs):
         # https://stackoverflow.com/a/55032634/890242
-        if isinstance(filein, str):  # filename
+        if isinstance(filein, str) and pathlike(filein):  # filename
             with open(filein, *args, **kwargs) as f:
                 yield f
-        else:  # file-like object
+        elif isinstance(filein, str):  # some other string, make a file-like
+            yield StringIO(filein)
+        else:
+            # file-like object
             yield filein
 
     throw = lambda ex: (_ for _ in ()).throw(ex)
     exceptions = []
 
-    def read(on_error='warn', default=None, msg='could not read {}'):
-        if fname_or_stream is None:
+    def read(**kwargs):
+        if file_or_str is None:
             return default
         for fn in parsers:
-            with fopen(fname_or_stream) as fin:
-                try:
+            try:
+                with fopen(file_or_str) as fin:
                     if hasattr(fin, 'seek'):
                         fin.seek(0)
-                    data = fn(fin)
-                except Exception as e:
-                    exceptions.append(e)
-                else:
-                    return data
+                    data = fn(fin, **kwargs.get(fn.__module__, {}))
+            except Exception as e:
+                exceptions.append(e)
+            else:
+                return data
         # nothing worked so far
         actions = {
-            'fail': lambda: throw(ValueError("Reading {} caused exceptions {}".format(fname_or_stream, exceptions))),
-            'warn': lambda: logging.warning(msg.format(fname_or_stream)) or default,
+            'fail': lambda: throw(ValueError("Reading {} caused exceptions {}".format(file_or_str, exceptions))),
+            'warn': lambda: logging.warning(msg.format(file_or_str)) or default,
             'silent': lambda: default,
         }
         return actions[on_error]()
 
     markup.read = read
     markup.exceptions = exceptions
-    return markup
+    return markup.read(**kwargs) if direct else markup
+
+def raises(fn, wanted_ex):
+    try:
+        fn()
+    except Exception as e:
+        assert isinstance(e, wanted_ex), "expected {}, raised {} instead".format(wanted_ex, e)
+    else:
+        raise ValueError("did not raise {}".format(wanted_ex))
+    return True
+
+if __name__ == '__main__':
+    import sys
+    from pprint import pprint
+
+    if len(sys.argv) > 1:
+       pprint(markup(sys.argv[1], on_error='fail'))
+    else:
+       print("testing...")
+       assert markup('foo: bar') == {'foo': 'bar'}
+       assert markup('{"foo": "bar"}') == {'foo': 'bar'}
+       assert markup(StringIO("foo: bar")) == {'foo': 'bar'}
+       #assert markup('test.txt') == {'foo': 'bar'}
+       assert raises(lambda : markup('xtest.txt', on_error='fail') == {'foo': 'bar'}, ValueError)
+       assert isinstance(markup('xtest.txt', on_error='silent', default=markup).exceptions[0], FileNotFoundError)
+       assert markup('failed: - bar') is None
+       assert markup('failed: - bar', default={}) == {}
+       assert raises(lambda : markup('failed: - bar', on_error='fail'), ValueError)
+       assert markup('failed: - bar', on_error='silent') is None
+       assert markup('failed: - bar', on_error='silent', default="nothing") == 'nothing'
+       assert markup('', default="nothing") == 'nothing'
+       assert lambda : markup('.', on_error='silent', default="nothing") == 'nothing'
+       assert lambda : markup('.', on_error='fail')
+       assert markup('foo: bar', direct=False) == markup and markup.read() == {'foo': 'bar'}
+       print("ok. use as python markup.py '<file or markup>'")
