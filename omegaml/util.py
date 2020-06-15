@@ -1,19 +1,16 @@
 from __future__ import absolute_import
 
 import warnings
-from contextlib import contextmanager
 from copy import deepcopy
 from importlib import import_module
 
 import logging
 import os
-import re
 import six
-import sys
 import tempfile
 import uuid
 from shutil import rmtree
-from six import string_types, StringIO
+from six import string_types
 
 try:
     import urlparse
@@ -76,35 +73,30 @@ def is_spark_mllib(obj):
 
 
 def settings(reload=False):
-    """ wrapper to get omega settings from either django or omegamldefaults """
+    """ wrapper to get omega settings from either django or omegaml.defaults """
     from omegaml import _base_config as omdefaults
     global __settings
     if not reload and __settings is not None:
         return __settings
     try:
         # see if we're running as a django app
-        from django.utils import six
-        from django.utils.functional import empty
+        from django.contrib.auth.models import User
         from django.conf import settings as djsettings  # @UnresolvedImport
-        defaults = djsettings
-        # this is to test if django was initialized. if not revert
-        # to using omdefaults
         try:
-            if defaults._wrapped is empty:
-                # django is not initialized, use omega defaults
-                raise ValueError()
-            getattr(defaults, 'SECRET_KEY')
+            getattr(djsettings, 'SECRET_KEY')
         except Exception as e:
             from warnings import warn
             warn("Using omegaml.defaults because Django was not initialized."
                  "Try importing omegaml within a method instead of at the "
                  "module level")
             raise
+        else:
+            defaults = djsettings
     except Exception as e:
+        # django failed to initialize, use omega defaults
         defaults = omdefaults
     else:
-        # get default omega settings into django settings if not set
-        # there already
+        # get default omega settings into django settings if not set there
         from omegaml import _base_config as omdefaults
         for k in dir(omdefaults):
             if k.isupper() and not hasattr(defaults, k):
@@ -645,6 +637,7 @@ from io import StringIO
 from contextlib import contextmanager
 import re
 
+
 def markup(file_or_str, parsers=None, direct=True, on_error='warn', default=None, msg='could not read {}',
            **kwargs):
     """
@@ -725,6 +718,7 @@ def markup(file_or_str, parsers=None, direct=True, on_error='warn', default=None
     markup.exceptions = exceptions
     return markup.read(**kwargs) if direct else markup
 
+
 def raises(fn, wanted_ex):
     try:
         fn()
@@ -734,27 +728,28 @@ def raises(fn, wanted_ex):
         raise ValueError("did not raise {}".format(wanted_ex))
     return True
 
-if __name__ == '__main__':
-    import sys
-    from pprint import pprint
+def dict_merge(destination, source, delete_on='__delete__'):
+    """
+    Merge two dictionaries, including sub dicts
 
-    if len(sys.argv) > 1:
-       pprint(markup(sys.argv[1], on_error='fail'))
-    else:
-       print("testing...")
-       assert markup('foo: bar') == {'foo': 'bar'}
-       assert markup('{"foo": "bar"}') == {'foo': 'bar'}
-       assert markup(StringIO("foo: bar")) == {'foo': 'bar'}
-       #assert markup('test.txt') == {'foo': 'bar'}
-       assert raises(lambda : markup('xtest.txt', on_error='fail') == {'foo': 'bar'}, ValueError)
-       assert isinstance(markup('xtest.txt', on_error='silent', default=markup).exceptions[0], FileNotFoundError)
-       assert markup('failed: - bar') is None
-       assert markup('failed: - bar', default={}) == {}
-       assert raises(lambda : markup('failed: - bar', on_error='fail'), ValueError)
-       assert markup('failed: - bar', on_error='silent') is None
-       assert markup('failed: - bar', on_error='silent', default="nothing") == 'nothing'
-       assert markup('', default="nothing") == 'nothing'
-       assert lambda : markup('.', on_error='silent', default="nothing") == 'nothing'
-       assert lambda : markup('.', on_error='fail')
-       assert markup('foo: bar', direct=False) == markup and markup.read() == {'foo': 'bar'}
-       print("ok. use as python markup.py '<file or markup>'")
+    Args:
+        destination (dict): the dictionary to merge into
+        source (dict): the dictionary to merge from
+        delete_on (obj): for each entry in source, its value is
+            compared to match delete_on, if it does the key will
+            be deleted in the destination dict. Defaults to '__delete__'
+
+    See Also:
+        https://stackoverflow.com/a/20666342/890242
+    """
+    dict_merge.DELETE = delete_on
+    for key, value in source.items():
+        if isinstance(value, dict):
+            # get node or create one
+            node = destination.setdefault(key, {})
+            dict_merge(node, value, delete_on=delete_on)
+        else:
+            if value == dict_merge.DELETE and key in destination:
+                del destination[key]
+            else:
+                destination[key] = value

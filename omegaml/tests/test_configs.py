@@ -54,7 +54,7 @@ class ConfigurationTests(TestCase):
         # check we get default without patching
         from omegaml import _base_config as _real_base_config
         with patch('omegaml._base_config') as defaults:
-            defaults = settings(reload=True)
+            settings(reload=True)
             # link callbacks used by get_omega_from_api_key
             _real_base_config.update_from_obj(_real_base_config, attrs=defaults)
             defaults.update_from_dict = _real_base_config.update_from_dict

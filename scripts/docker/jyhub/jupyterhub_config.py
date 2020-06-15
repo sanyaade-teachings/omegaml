@@ -367,7 +367,7 @@ c.JupyterHub.logo_file = '/app/logo.jpg'
 #  Setting this can limit the total resources a user can consume.
 #
 #  If set to 0, no limit is enforced.
-#c.JupyterHub.named_server_limit_per_user = 0
+c.JupyterHub.named_server_limit_per_user = 2
 
 ## File to write PID Useful for daemonizing JupyterHub.
 #c.JupyterHub.pid_file = ''

@@ -7,7 +7,7 @@ import os
 import six
 import sys
 
-from omegaml.util import tensorflow_available, keras_available, module_available, markup
+from omegaml.util import tensorflow_available, keras_available, module_available, markup, dict_merge
 
 # determine how we're run
 is_cli_run = os.path.basename(sys.argv[0]) == 'om'
@@ -137,6 +137,7 @@ OMEGA_LOG_DATASET = '.omega/logs'
 #: OmegaLoggingHandler log format
 OMEGA_LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
+
 # =========================================
 # ----- DO NOT MODIFY BELOW THIS LINE -----
 # =========================================
@@ -155,7 +156,7 @@ def update_from_config(vars=globals(), config_file=OMEGA_CONFIG_FILE):
         for k in [k for k in vars.keys() if k.startswith('OMEGA')]:
             value = userconfig.get(k, None) or vars[k]
             if isinstance(vars[k], dict):
-                vars[k].update(value)
+                dict_merge(vars[k], value)
             else:
                 vars[k] = value
     return vars
@@ -183,15 +184,32 @@ def update_from_obj(obj, vars=globals(), attrs=None):
     helper function to update omegaml.defaults from arbitrary module
 
     :param obj: the source object (must support getattr). Any
-       variable starting with OMEGA is set in omegaml.defaults
+       upppe case variable/key in source is set in vars or attrs
+    :param vars: the target object as a dict or obj
+    :param attrs: the target object as attributes (deprecated). Specifying
+        attrs takes precedence over vars and is equal to setting vars to attrs
     """
-    for k in [k for k in dir(obj) if k.startswith('OMEGA')]:
-        if hasattr(obj, k):
-            value = getattr(obj, k)
-            if attrs:
-                setattr(attrs, k, value)
-            else:
-                vars[k] = value
+
+    def update(target, k, value):
+        # for dict obj and dict value, merge the two, else set key or attribute
+        if isinstance(value, dict):
+            set_default(target, k, {})
+            dict_merge(get_k(target, k), value)
+        else:
+            set_k(target, k, value)
+
+    # helper functions that work for both dict and obj
+    keys = lambda o: o.keys() if isinstance(o, dict) else dir(o)
+    as_attrs = lambda o: not isinstance(o, dict)
+    has_k = lambda o, k: hasattr(o, k) if as_attrs(o) else k in o
+    get_k = lambda o, k: getattr(o, k) if as_attrs(o) else o[k]
+    set_k = lambda o, k, v: setattr(o, k, v) if as_attrs(o) else o.__setitem__(k, v)
+    set_default = lambda o, k, d: setattr(o, k, getattr(o, k, d)) if as_attrs(o) else o.setdefault(k, d)
+    # update any
+    target = attrs or vars
+    for k in [k for k in keys(obj) if k.isupper()]:
+        value = get_k(obj, k)
+        update(target, k, value)
 
 
 def update_from_dict(d, vars=globals(), attrs=None):
@@ -301,9 +319,12 @@ def load_user_extensions(vars=globals()):
                    'expected type {omvar_type} got {k_type}').format(**locals())
             raise ValueError(msg)
 
+
 def load_framework_support(vars=globals()):
     # load framework-specific backends
     # -- note we do this here to ensure this happens after config updates
+    if OMEGA_DISABLE_FRAMEWORKS:
+        return
     if 'tensorflow' in vars['OMEGA_FRAMEWORKS'] and tensorflow_available():
         #: tensorflow backend
         # https://stackoverflow.com/a/38645250
@@ -319,6 +340,7 @@ def load_framework_support(vars=globals()):
     #: dash backend
     if 'dash' in OMEGA_FRAMEWORKS and module_available('dashserve'):
         vars['OMEGA_STORE_BACKENDS'].update(vars['OMEGA_STORE_BACKENDS_DASH'])
+
 
 # -- test support
 # this is to avoid using production settings during test
@@ -339,5 +361,5 @@ else:
         warnings.filterwarnings("ignore", category=FutureWarning)
 
 # load extensions, always last step to ensure we have user configs loaded
-load_framework_support() if not OMEGA_DISABLE_FRAMEWORKS else None
+load_framework_support()
 load_user_extensions()

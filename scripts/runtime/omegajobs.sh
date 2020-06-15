@@ -47,7 +47,7 @@ if [[ ! -f $OMEGA_CONFIG_FILE ]]; then
     touch $OMEGA_CONFIG_FILE/config.yml
 fi
 # -- start worker and jupyterhub
-pip install --user jupyterhub jupyterlab
+pip install -U --user jupyterhub==$JY_HUB_VERSION jupyterlab
 cd $HOME/.jupyter
 nohup honcho -d $APPBASE start worker >> worker.log 2>&1 &
 jupyterhub-singleuser --ip $ip --port $port $jydebug

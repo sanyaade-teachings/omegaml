@@ -26,8 +26,9 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     data_files=[
-        ('omegaml/docs/', glob.glob('./docs/source/nb/*.ipynb'))
+        ('omegaml/docs/', glob.glob('./docs/source/nb/*.ipynb')),
     ],
+    scripts=glob.glob('./scripts/runtime/*'),
     license='Apache 2.0',
     description='An open source DataOps, MLOps platform for humans',
     long_description=README,
