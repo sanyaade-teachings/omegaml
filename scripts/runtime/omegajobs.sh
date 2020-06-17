@@ -33,6 +33,7 @@ if [[ -d "/app" ]]; then
   export PYTHONPATH="/app/pylib/user:/app/pylib/base"
   export PYTHONUSERBASE="/app/pylib/user"
   export OMEGA_CONFIG_FILE="app/pylib/user/.omegaml/config.yml"
+  export PATH="$PYTHONUSERBASE/bin:$PATH"
 else
   export APPBASE=$HOME
   export OMEGA_CONFIG_FILE="$APPBASE/.omegaml/config.yml"

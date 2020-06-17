@@ -1,4 +1,5 @@
 import glob
+
 import os
 from setuptools import setup, find_packages
 
@@ -16,9 +17,10 @@ dashserve_deps = ['dashserve']
 sql_deps = ['sqlalchemy', 'ipython-sql']
 iotools_deps = ['smart_open', 'boto>=2.49.0']
 streaming_deps = ['minibatch[all]']
+jupyter_deps = ['jupyterlab', 'jupyterhub']
 
 # all deps
-all_deps = hdf_deps + tf_deps + keras_deps + graph_deps + dashserve_deps + sql_deps + iotools_deps + streaming_deps
+all_deps = hdf_deps + tf_deps + keras_deps + graph_deps + dashserve_deps + sql_deps + iotools_deps + streaming_deps + jupyter_deps
 
 setup(
     name='omegaml',
@@ -77,7 +79,7 @@ setup(
         # https://github.com/tensorflow/tensorflow/issues/26691#issuecomment-525519742
         'absl-py>=0.8.1',
         'tqdm>=4.32.2',
-        'honcho>=1.0.1', # not strictly required, but used in docker compose
+        'honcho>=1.0.1',  # not strictly required, but used in docker compose
     ],
     extras_require={
         'graph': graph_deps,
