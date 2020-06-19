@@ -555,7 +555,7 @@ class MDataFrame(object):
         else:
             data = self._inspect_cache
         if not (raw or explain):
-            data = pd.DataFrame(pd.json_normalize(data))
+            data = pd.DataFrame(json_normalize(data))
         return data
 
     def count(self):
