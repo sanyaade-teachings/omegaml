@@ -1,15 +1,19 @@
-import os
+import mimetypes
+from base64 import encodebytes, decodebytes
 
 import nbformat
+import os
 from datetime import datetime
-from notebook.services.contents.manager import ContentsManager
+from io import BytesIO
+from notebook.services.contents.filemanager import FileContentsManager
 from tornado import web
+from tornado.web import HTTPError
 from urllib.parse import unquote
 
 from omegaml.notebook.checkpoints import NoOpCheckpoints
 
 
-class OmegaStoreContentsManager(ContentsManager):
+class OmegaStoreContentsManager(FileContentsManager):
     """
     Jupyter notebook storage manager for omegaml
 
@@ -59,10 +63,13 @@ class OmegaStoreContentsManager(ContentsManager):
         if not self.exists(path):
             raise web.HTTPError(404, u'No such file or directorys: %s' % path)
 
-        if path == '' or type == 'directory':
+        is_directory_request = (path == '' or type == 'directory' or type is None)
+        if is_directory_request:
             model = self._dir_model(path, content=content)
         elif type == 'notebook' or (type is None and path.endswith('.ipynb')):
             model = self._notebook_model(path, content=content)
+        elif type == 'file':
+            model = self._file_model(path, content=content)
         else:
             raise web.HTTPError(404, u'Type {} at {} is not supported'.format(type, path))
         return model
@@ -73,15 +80,19 @@ class OmegaStoreContentsManager(ContentsManager):
 
         this is called by the contents engine to store a notebook
         """
+        self.run_pre_save_hook(model=model, path=path)
+
         om = self.omega
         path = unquote(path).strip('/')
         type = model.get('type')
         name = model.get('name')
+
         self.run_pre_save_hook(model=model, path=path)
+
         if type is None:
             raise web.HTTPError(400, u'No file type provided')
         try:
-            if type == 'notebook':
+            if type == 'notebook' or (type is None and path.endswith('.ipynb')):
                 content = model.get('content')
                 if content is None:
                     raise web.HTTPError(400, u'No file content provided')
@@ -100,6 +111,10 @@ class OmegaStoreContentsManager(ContentsManager):
                 model['content'] = None
                 model['format'] = None
                 validation_message = None
+            elif model['type'] == 'file':
+                # Missing format will be handled internally by _save_file.
+                self._save_file(path, model['content'], model.get('format'))
+                model = self.get(path, content=False)
             else:
                 raise web.HTTPError(
                     400, "Unhandled contents type: %s" % model['type'])
@@ -110,6 +125,9 @@ class OmegaStoreContentsManager(ContentsManager):
                 u'Error while saving file: %s %s', path, e, exc_info=True)
             raise web.HTTPError(
                 500, u'Unexpected error while saving file: %s %s' % (path, e))
+
+        self.run_post_save_hook(model=model, os_path=path)
+
         return model
 
     def delete_file(self, path):
@@ -185,7 +203,7 @@ class OmegaStoreContentsManager(ContentsManager):
             True if file exists
         """
         path = unquote(path).strip('/')
-        return path in self.omega.jobs.list(path)
+        return path in self.omega.jobs.list(path) or path in self.omega.datasets.list(path)
 
     def is_hidden(self, path):
         """check if path or file is hidden
@@ -227,7 +245,7 @@ class OmegaStoreContentsManager(ContentsManager):
             model['created'] = datetime.utcnow()
         return model
 
-    def _base_model(self, path, kind=None):
+    def _base_model(self, path, kind=None, content=True):
         """Build the common base of a contents model"""
         # http://jupyter-notebook.readthedocs.io/en/stable/extending/contents.html
         path = unquote(path).strip('/')
@@ -245,7 +263,7 @@ class OmegaStoreContentsManager(ContentsManager):
         model['writable'] = True
         if kind:
             model['type'] = kind
-            model['content'] = [] if kind == 'directory' else None
+            model['content'] = [] if kind == 'directory' and content else None
         return model
 
     def _dir_model(self, path, content=True):
@@ -255,8 +273,8 @@ class OmegaStoreContentsManager(ContentsManager):
         """
         # this looks like a seemingly simple task, it's carefully crafted
         path = unquote(path).strip('/')
-        model = self._base_model(path, kind='directory')
-        model['format'] = 'json'
+        model = self._base_model(path, kind='directory', content=content)
+        model['format'] = 'json' if content else None
         contents = model['content']
         # get existing entries from a pattern that matches either
         #    top-level files: ([\w -]+\.[\w -]*)
@@ -275,6 +293,7 @@ class OmegaStoreContentsManager(ContentsManager):
             pattern = '{path}/{pattern}'.format(path=path, pattern=pattern)
         pattern = '^{}'.format(pattern)
         entries = self.omega.jobs.list(pattern, raw=True)
+        entries += self.omega.datasets.list(regexp=pattern, kind='python.file', raw=True)
         # by default assume the current path is listed already
         directories = [path]
         for meta in entries:
@@ -293,7 +312,9 @@ class OmegaStoreContentsManager(ContentsManager):
                 continue
             # include the actual file
             try:
-                entry = self.get(meta.name, content=content, type='notebook')
+                content = False if os.environ.get('OMEGA_NOCONTENTS_DIRMODEL') else content
+                kind = 'file' if meta.kind == 'python.file' else 'notebook'
+                entry = self.get(meta.name, content=content, type=kind)
             except Exception as e:
                 msg = ('_dir_model error, cannot get {}, '
                        'removing from list, exception {}'.format(meta.name, str(e)))
@@ -301,3 +322,89 @@ class OmegaStoreContentsManager(ContentsManager):
             else:
                 contents.append(entry)
         return model
+
+    def _file_model(self, path, content=True, format=None):
+        """Build a model for a file
+
+        if content is requested, include the file contents.
+
+        format:
+          If 'text', the contents will be decoded as UTF-8.
+          If 'base64', the raw bytes contents will be encoded as base64.
+          If not specified, try to decode as UTF-8, and fall back to base64
+        """
+        model = self._base_model(path, kind='file')
+        model['type'] = 'file'
+
+        model['mimetype'] = mimetypes.guess_type(path)[0]
+
+        if content:
+            content, format = self._read_file(path, format)
+            if model['mimetype'] is None:
+                default_mime = {
+                    'text': 'text/plain',
+                    'base64': 'application/octet-stream'
+                }[format]
+                model['mimetype'] = default_mime
+
+            model.update(
+                content=content,
+                format=format,
+            )
+
+        return model
+
+    def _read_file(self, path, format):
+        """Read a non-notebook file.
+
+        path: The path to be read.
+        format:
+          If 'text', the contents will be decoded as UTF-8.
+          If 'base64', the raw bytes contents will be encoded as base64.
+          If not specified, try to decode as UTF-8, and fall back to base64
+        """
+        # adopted from FileContentsManager
+        meta = self.omega.datasets.metadata(path)
+        if meta.gridfile is None:
+            raise HTTPError(400, "Cannot read non-file %s" % path)
+
+        f = self.omega.datasets.get(path)
+        bcontent = f.read()
+        f.close()
+
+        if format is None or format == 'text':
+            # Try to interpret as unicode if format is unknown or if unicode
+            # was explicitly requested.
+            try:
+                return bcontent.decode('utf8'), 'text'
+            except UnicodeError:
+                if format == 'text':
+                    raise HTTPError(
+                        400,
+                        "%s is not UTF-8 encoded" % path,
+                        reason='bad format',
+                    )
+        return encodebytes(bcontent).decode('ascii'), 'base64'
+
+    def _save_file(self, path, content, format):
+        """Save content of a generic file."""
+        # adopted from FileContentsManager
+        if format not in {'text', 'base64'}:
+            raise HTTPError(
+                400,
+                "Must specify format of file contents as 'text' or 'base64'",
+            )
+        try:
+            if format == 'text':
+                bcontent = content.encode('utf8')
+            else:
+                b64_bytes = content.encode('ascii')
+                bcontent = decodebytes(b64_bytes)
+        except Exception as e:
+            raise HTTPError(
+                400, u'Encoding error saving %s: %s' % (path, e)
+            )
+
+        bytesf = BytesIO(bcontent)
+        bytesf.seek(0)
+        self.omega.datasets.put(bytesf, path)

@@ -1,5 +1,6 @@
 from unittest import TestCase
 
+from six import StringIO, BytesIO
 from tornado.web import HTTPError
 
 from omegaml import Omega
@@ -11,6 +12,7 @@ class OmegaContentsManagerTests(TestCase):
         self.om = Omega()
         self.mgr = OmegaStoreContentsManager(omega=self.om)
         [self.om.jobs.drop(fn) for fn in self.om.jobs.list()]
+        [self.om.datasets.drop(fn) for fn in self.om.datasets.list()]
 
     def _create_notebook(self, name):
         code = """
@@ -70,6 +72,25 @@ class OmegaContentsManagerTests(TestCase):
         model = self.mgr.get('/sub/bar.ipynb', type='notebook')
         self.assertEqual(model['name'], 'bar.ipynb')
         self.assertEqual(model['content']['cells'][0]['source'], "print('hello world')")
+
+    def test_save_file(self):
+        om = self.om
+        # create a file
+        fin = BytesIO("foobar".encode('utf8'))
+        om.datasets.put(fin, 'test.txt')
+        # get file back
+        model = self.mgr.get('test.txt', type='file', format='text', content=True)
+        self.assertEqual(model['name'], 'test.txt')
+        self.assertIn('last_modified', model)
+        self.assertIn('created', model)
+        self.assertEqual(model['type'], 'file')
+        self.assertEqual(model['mimetype'], 'text/plain')
+        # see if we can get directory listing with file in it
+        model = self.mgr.get('/', type='directory')
+        self.assertEqual(len(model['content']), 1)
+        self.assertEqual('test.txt', model['content'][0]['name'])
+        self.assertEqual('test.txt', model['content'][0]['path'])
+        self.assertEqual('text/plain', model['content'][0]['mimetype'])
 
     def test_overwrite_existing_notebook(self):
         # create a dummy notebook just so we have a valid model
