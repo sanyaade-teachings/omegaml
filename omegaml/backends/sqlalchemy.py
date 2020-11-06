@@ -7,6 +7,7 @@ import pandas as pd
 import six
 
 from omegaml.backends.basedata import BaseDataBackend
+from omegaml.mdataframe import MDataFrame
 
 try:
     import snowflake
@@ -58,7 +59,7 @@ class SQLAlchemyBackend(BaseDataBackend):
         om.datasets.put(sqlalchemy_constr, 'mysqlalchemy', table='mytable', sql='select ...', copy=True)
         om.datasets.get('mysqlalchemy') # read from {bucket}_myname
         # -- to use a specific table, without bucket information use table=':myname'
-        om.datasets.put(sqlalchemy_constr, 'mysqlalchemy', table='mytable', sql='select ...', copy=True)
+        om.datasets.put(sqlalchemy_constr, 'mysqlalchemy', table=':mytable', sql='select ...', copy=True)
         om.datasets.get('mysqlalchemy') # read from myname
 
         Insert data via the connection
@@ -201,7 +202,11 @@ class SQLAlchemyBackend(BaseDataBackend):
         Inserting via connection, specify insert=True:
             insert (bool): specify True to insert via connection
             table (str): the table name to use for inserting data
-            append (bool): if False will replace any existing table
+            append (bool): if False will replace any existing table, defaults to True
+            index (bool): if False will not attempt to create an index in target, defaults to True. Note some
+               systems do not support indexes. In this case use index=False.
+            chunksize (int): number of records to use for each chunk
+            transform (callable): passed as DataFrame.to_sql(method=)
 
         Returns:
             metadata
@@ -241,7 +246,12 @@ class SQLAlchemyBackend(BaseDataBackend):
         connection = self.get(name, raw=True)
         metadata = self.data_store.metadata(name)
         if isinstance(obj, pd.DataFrame) and index:
+            # in case of pandas DataFrame get index straight from object
             index_cols = _dataframe_to_indexcols(obj, metadata, index_columns=index_columns)
+        elif isinstance(obj, MDataFrame):
+            # in case of pandas MDataFrame get index by peeking into first row
+            peek_df = obj.head(1).value
+            index_cols = _dataframe_to_indexcols(peek_df, metadata, index_columns=index_columns)
         else:
             index_cols = index_columns
         metadata.kind_meta['index_columns'] = index_cols
@@ -336,8 +346,13 @@ class SQLAlchemyBackend(BaseDataBackend):
         # insert large df in chunks and with a progress bar
         # from https://stackoverflow.com/a/39495229
         chunksize = chunksize if chunksize is not None else 10000
+
         def chunker(seq, size):
-            return (seq[pos:pos + size] for pos in range(0, len(seq), size))
+            if hasattr(seq, 'iloc'):
+                gen = (seq.iloc[pos:pos + size] for pos in range(0, len(seq), size))
+            else:
+                gen = (seq[pos:pos + size] for pos in range(0, len(seq), size))
+            return gen
 
         def to_sql(df, table, connection, pbar=False):
             for i, cdf in enumerate(chunker(df, chunksize)):
@@ -417,7 +432,7 @@ def _is_valid_url(url):
 
     try:
         url = sqlalchemy.engine.url.make_url(url)
-        drivername = url.drivername.split('+')[0] # e.g. mssql+pyodbc => mssql
+        drivername = url.drivername.split('+')[0]  # e.g. mssql+pyodbc => mssql
         valid = url.drivername in sqlalchemy.dialects.__all__
         valid |= sqlalchemy.dialects.registry.load(drivername) is not None
     except:

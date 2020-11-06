@@ -482,7 +482,7 @@ class MDataFrame(object):
             kwargs = self._getcopy_kwargs()
             kwargs.update(query=cols_or_slice.query)
             return MDataFrame(self.collection, **kwargs)
-        elif isinstance(cols_or_slice, np.ndarray):
+        elif isinstance(cols_or_slice, (np.ndarray, slice)):
             return self.iloc[cols_or_slice]
         raise ValueError('unknown accessor type %s' % type(cols_or_slice))
 

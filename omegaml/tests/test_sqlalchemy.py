@@ -220,6 +220,34 @@ class SQLAlchemyBackendTests(OmegaTestMixin, TestCase):
         df_expected = df.append(df)
         assert_frame_equal(dfx, df_expected)
 
+    def test_put_data_via_connection_from_mdf(self):
+        """
+        store dataframe via connection
+        """
+        om = self.om
+        cnx = 'sqlite:///test.db'
+        om.datasets.put(cnx, 'testsqlite', table=':foo',
+                        kind=SQLAlchemyBackend.KIND)
+        df = pd.DataFrame({
+            'x': range(10)
+        })
+        df.index.names = ['index']
+        om.datasets.put(df, 'testdf', append=False)
+        mdf = om.datasets.getl('testdf')
+        # replace
+        om.datasets.put(mdf, 'testsqlite', insert=True, append=False)
+        meta = om.datasets.metadata('testsqlite')
+        self.assertEqual(meta.kind, SQLAlchemyBackend.KIND)
+        dfx = om.datasets.get('testsqlite', sql='select * from foo')
+        assert_frame_equal(df, dfx)
+        # append
+        om.datasets.put(mdf, 'testsqlite', insert=True, append=False)
+        om.datasets.put(mdf, 'testsqlite', insert=True)
+        dfx = om.datasets.get('testsqlite', sql='select * from foo')
+        df_expected = df.append(df)
+        assert_frame_equal(dfx, df_expected)
+
+
     def test_put_data_via_connection_bucket(self):
         """
         store dataframe via connection
