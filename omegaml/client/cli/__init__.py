@@ -73,7 +73,8 @@ def main(argv=None, logger=None, **kwargs):
         parser.parse()
         parser.process()
     except Exception as e:
-        print(f"*** ERROR {e}")
+        print_error = logger.error or print
+        print_error(f"*** ERROR {e}")
         if parser.should_debug:
             raise
         exit(1)

@@ -40,6 +40,16 @@ class CliScriptsTest(CliTestScenarios, OmegaTestMixin, TestCase):
         self.assertLogSize('info', 1)
         self.assertLogContains('info', 'six')
 
+    def test_cli_scripts_put_nonexisting(self):
+        self.cli(f'scripts list')
+        self.assertLogContains('info', '[]')
+        pkgpath = 'foo/six'
+        with self.assertRaises(ValueError):
+            self.cli(f'scripts put {pkgpath} six', new_start=True, debug=True, logger=self.get_test_logger())
+        self.assertLogContains('error', 'is not a valid path')
+        self.cli(f'scripts list')
+        self.assertLogContains('info', '[]')
+
     def test_cli_scripts_put_git(self):
         self.cli(f'scripts list')
         self.assertLogContains('info', '[]')

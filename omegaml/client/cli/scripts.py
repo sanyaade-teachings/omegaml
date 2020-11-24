@@ -32,10 +32,13 @@ class ScriptsCommandBase(CommandBase):
             name = name or os.path.basename(script_path)
             abs_path = os.path.abspath(script_path)
             meta = om.scripts.put('pkg://{}'.format(abs_path), name)
-        elif PythonPipSourcedPackageData.supports(script_path, name):
-            meta = om.scripts.put(script_path, name)
-        elif PythonPipSourcedPackageData.supports(as_pypi(script_path), name):
-            meta = om.scripts.put(as_pypi(script_path), name)
+        elif not script_path.endswith('setup.py') and script_path == os.path.basename(script_path):
+            if PythonPipSourcedPackageData.supports(script_path, name):
+                self.logger.warning(f'Could not find {script_path}, assuming pip-sourced packaged pypi://{script_path}')
+                meta = om.scripts.put(script_path, name)
+            elif PythonPipSourcedPackageData.supports(as_pypi(script_path), name):
+                self.logger.warning(f'Could not find {script_path}, assuming pip-sourced packaged pypi://{script_path}')
+                meta = om.scripts.put(as_pypi(script_path), name)
         else:
             raise ValueError('{} is not a valid path'.format(script_path))
         self.logger.info(meta)

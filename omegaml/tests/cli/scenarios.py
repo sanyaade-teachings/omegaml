@@ -122,7 +122,7 @@ class CliTestScenarios:
             raise AssertionError(f'{expected} is not in {data} compared as {compare_as}')
 
     def cli(self, argv, new_start=False, **kwargs):
-        self.cli_logger = self.get_test_logger()
+        self.cli_logger = kwargs.pop('logger', self.get_test_logger())
         if new_start:
             self.cli_logger.clear()
             self.pretend_logger.clear() if self.pretend_logger else None

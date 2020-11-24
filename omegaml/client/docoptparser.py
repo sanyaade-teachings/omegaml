@@ -259,7 +259,7 @@ class CommandParser:
     """
 
     def __init__(self, docs, commands, argv=None, version=None, logger=None,
-                 command_tag=None, catchall='catchall', askfn=None):
+                 command_tag=None, catchall='catchall', askfn=None, debug=False):
         self.docs = docs
         self.commands = commands  # available command implementations
         self.command = None  # chosen command implementation, see parse_command
@@ -270,6 +270,7 @@ class CommandParser:
         self.catchall = catchall
         self._logger = logger
         self._askfn = askfn
+        self._debug = debug
         self.apply_command_usage()
 
     @property
@@ -289,7 +290,7 @@ class CommandParser:
 
     @property
     def should_debug(self):
-        return os.environ.get('DOCOPT_DEBUG')
+        return self._debug or os.environ.get('DOCOPT_DEBUG')
 
     @property
     def silent(self):
