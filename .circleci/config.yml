@@ -52,22 +52,19 @@ jobs:
             if [[ $CIRCLE_BRANCH = "release-build" ]]; then
               # due to different allowed combinations we need several loops
               # we dont use tox because tox assumes python version is installed already
-              # py36
-              PYVER=3.6
-              for TF_VERSION in 1.15.3 2.2.0 2.3.0 2.3.1 2.4.0; do
-                dotest $PYVER $TF_VERSION
-              done
-              # py37 py38
+              # py37 tensorflow 1.15
+              PYVER=3.7
+              TF_VERSION=1.15.3
+              dotest $PYVER $TF_VERSION
+              # py37 py38 all tf versions
               for PYVER in 3.7 3.8; do
                 for TF_VERSION in 2.2.0 2.3.0 2.3.1 2.4.0; do
                   dotest $PYVER $TF_VERSION
                 done
               done
               # py39
-              # see https://github.com/tensorflow/tensorflow/issues/44485
-              #     https://github.com/tensorflow/tensorflow/issues/44400
               PYVER=3.9
-              for TF_VERSION in 2.5 2.6 2.7; do
+              for TF_VERSION in 2.5 2.6 2.7 2.8; do
                 dotest $PYVER $TF_VERSION
               done
               # end tests

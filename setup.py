@@ -20,22 +20,23 @@ mlflow_deps = ['mlflow~=1.21.0']
 dev_deps = ['nose', 'twine', 'flake8', 'mock', 'behave', 'splinter', 'ipdb', 'bumpversion']
 
 # -- tensorflow specifics
+#    see https://www.tensorflow.org/install/source
 tf_version = os.environ.get('TF_VERSION') or '2.3.1'
 tf_match = os.environ.get('TF_VERSION_MATCH', '==')
 if tf_version.startswith('1.15'):
-    assert sys.version_info <= (3, 7), "TF < 2.x requires Python <= 3.7"
+    assert sys.version_info[:2] <= (3, 7), "TF < 2.x requires Python <= 3.7"
     tf_deps = ['tensorflow=={}'.format(tf_version)]
     tf_deps = tf_deps + ['tensorflow-gpu==1.15.0', 'h5py==2.10.0']
     keras_deps = ['keras==2.2.4']
-elif (3, 8) <= sys.version_info < (3, 9) :
+elif (3, 8) <= sys.version_info[:2] < (3, 9) :
     major, minor, *_ = (int(v) for v in tf_version.split('.'))
     assert (major, minor) >= (2, 2), "Python version 3.8 only supported by TF >= 2.2"
     tf_deps = ['tensorflow{}{}'.format(tf_match, tf_version)]
     keras_deps = ['keras~=2.4.3']
-elif sys.version_info >= (3, 9):
+elif sys.version_info[:2] >= (3, 9):
     major, minor, *_ = (int(v) for v in tf_version.split('.'))
     tf_issue = "https://github.com/tensorflow/tensorflow/issues/44485"
-    tf_deps = ['tensorflow>=2.5,<2.8']
+    tf_deps = ['tensorflow>=2.5,<2.9']
     keras_deps = ['keras~=2.4.3']
 else:
     # python 3.6, tensorflow 2.3.1 only supported with keras<=2.5
