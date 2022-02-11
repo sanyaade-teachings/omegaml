@@ -14,6 +14,14 @@ from omegaml.tests.util import OmegaTestMixin
 
 
 class TrackingTestCases(OmegaTestMixin, unittest.TestCase):
+    """
+    notes on framework versions v.v. tracing
+
+    tensorflow
+    1.15.3  - does not report metric on epoch, while later versions do
+              (=> reports only 9 instead of 10 metrics per run)
+            - reports metric='accuracy' as 'acc'
+    """
     def setUp(self):
         self.om = om = Omega()
         self.clean()
@@ -237,8 +245,8 @@ class TrackingTestCases(OmegaTestMixin, unittest.TestCase):
         with om.runtime.experiment('myexp') as exp:
             model, X, Y = self._create_model(exp.tensorflow_callback())
         self.assertIsInstance(exp.data(), pd.DataFrame)
-        self.assertEqual(len(exp.data(key='loss')), 10)
-        self.assertEqual(len(exp.data(key='accuracy')), 10)
+        self.assertGreaterEqual(len(exp.data(key='loss')), 9)
+        self.assertGreaterEqual(len(exp.data(key=['acc', 'accuracy'])), 9)
         model_ = exp.restore_artifact('model')
         self.assertIsInstance(model, type(model_))
         # fit via runtime
@@ -247,10 +255,11 @@ class TrackingTestCases(OmegaTestMixin, unittest.TestCase):
             om.runtime.model('mymodel').fit(X, Y, epochs=1,
                                             batch_size=128).get()
         self.assertIsNotNone(exp.data())
-        self.assertEqual(len(exp.data(key='accuracy')), 10)
+        self.assertGreaterEqual(len(exp.data(key=['acc', 'accuracy'])), 9)
 
     def _create_model(self, tracking_cb):
         import numpy as np
+        import tensorflow as tf
         from tensorflow import keras
         from tensorflow.keras.optimizers import SGD
         from tensorflow.keras.models import Sequential
@@ -260,7 +269,12 @@ class TrackingTestCases(OmegaTestMixin, unittest.TestCase):
         y_train = keras.utils.to_categorical(np.random.randint(10, size=(1000, 1)), num_classes=10)
 
         model = Sequential()
-        model.add(Dense(10, activation='softmax', input_shape=x_train.shape))
+        if tf.version.VERSION == '1.15.3':
+            # rationale: https://stackoverflow.com/a/43233458/890242
+            shape = x_train.shape[1:]
+        else:
+            shape = x_train.shape
+        model.add(Dense(10, activation='softmax', input_shape=shape))
         sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
         model.compile(loss='categorical_crossentropy',
                       optimizer=sgd,
@@ -285,7 +299,7 @@ class TrackingTestCases(OmegaTestMixin, unittest.TestCase):
             exp.profiler.interval = 0.1
             sleep(1.5)
         data = exp.data(event='profile')
-        self.assertGreaterEqual(len(data), 10)
+        self.assertGreaterEqual(len(data), 9)
         xexp = om.runtime.experiment('proftest')
         self.assertIsInstance(xexp.experiment, OmegaProfilingTracker)
 
