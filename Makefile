@@ -2,7 +2,11 @@
 VERSION=$(shell cat omegaml/VERSION)
 
 install:
-	pip install -e .[${EXTRAS}] ${PIPREQ}
+	# in some images pip is outdated, some packages are system-level installed
+	# https://stackoverflow.com/questions/49911550/how-to-upgrade-disutils-package-pyyaml
+	pip install --ignore-installed -U pip
+	pip install ${PIPOPTS} --progress-bar off -e ".[${EXTRAS}]" "${PIPREQ}"
+	(which R && scripts/setup-r.sh) || echo "R is not installed"
 
 test:
 	# add -x to fail on first error

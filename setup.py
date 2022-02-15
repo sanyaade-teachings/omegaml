@@ -88,7 +88,7 @@ setup(
         'numpy>=1.16.4',
         'scipy>=0.17.0',
         'scikit-learn>=0.21',
-        'PyYAML>=5.1',
+        'PyYAML>=3.12',
         'flask-restx>=0.4.0',
         'six>=1.11.0',
         'croniter>=0.3.30',
@@ -108,7 +108,7 @@ setup(
         'honcho>=1.0.1',  # not strictly required, but used in docker compose
         'tabulate>=0.8.2',  # required in cli
         'smart_open', # required in cli
-        'imageio>=2.6.1', # require to store images
+        'imageio>=2.3.0', # require to store images
         'psutil>=5.8' # required for profiling tracker
     ],
     extras_require={

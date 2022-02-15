@@ -3,7 +3,7 @@ jobs:
   test:
     working_directory: /home/circleci
     machine:
-      image: ubuntu-1604:201903-01
+      image: ubuntu-2004:202107-02
     steps:
       - checkout:
           path: /home/circleci/omegaml-ce
@@ -39,35 +39,18 @@ jobs:
             docker exec -i $(docker ps -qf name=mongo) mongo < scripts/mongoinit.js
             function dotest() {
               export VER=$1
-              export TF_VERSION=$2
+              export EXTRAS=all,dev,mlflow
               conda env remove -q -y -n omenv$VER || echo ""
-              echo "Testing with python $VER tensorflow $TF_VERSION"
+              echo "Testing with python $VER"
               conda create -q -y -n omenv$VER python=$VER
               conda activate omenv$VER
-              scripts/setup-r.sh
-              pip install --progress-bar off .[all,dev,mlflow]
+              make install
               make test
               conda deactivate
             }
             if [[ $CIRCLE_BRANCH = "release-build" ]]; then
-              # due to different allowed combinations we need several loops
-              # we dont use tox because tox assumes python version is installed already
-              # py37 tensorflow 1.15
-              PYVER=3.7
-              TF_VERSION=1.15.3
-              dotest $PYVER $TF_VERSION
-              # py37 py38 all tf versions
-              for PYVER in 3.7 3.8; do
-                for TF_VERSION in 2.2.0 2.3.0 2.3.1 2.4.0; do
-                  dotest $PYVER $TF_VERSION
-                done
-              done
-              # py39
-              PYVER=3.9
-              for TF_VERSION in 2.5 2.6 2.7 2.8; do
-                dotest $PYVER $TF_VERSION
-              done
-              # end tests
+              # actual specs are in scripts/docker/test_images.txt
+              scripts/runtests.sh
             else
               # if this is not a release build, do a quick build for speed
               PYVER=3.9

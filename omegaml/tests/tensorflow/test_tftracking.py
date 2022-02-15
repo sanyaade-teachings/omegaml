@@ -57,12 +57,14 @@ class TFCallbackTrackingTestCases(OmegaTestMixin, unittest.TestCase):
         y_train = keras.utils.to_categorical(np.random.randint(10, size=(1000, 1)), num_classes=10)
 
         model = Sequential()
+        # FIXME tv versions 2.2 through 2.6 worked with x_train.shape, 1.15.3 and since 2.7 dont
         if tf.version.VERSION == '1.15.3':
             # rationale: https://stackoverflow.com/a/43233458/890242
-            shape = x_train.shape[1:]
+            x_shape = x_train.shape[1:]
         else:
-            shape = x_train.shape
-        model.add(Dense(10, activation='softmax', input_shape=shape))
+            x_shape = x_train.shape
+        x_shape = x_train.shape[1:]
+        model.add(Dense(10, activation='softmax', input_shape=x_shape))
         sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
         model.compile(loss='categorical_crossentropy',
                       optimizer=sgd,
