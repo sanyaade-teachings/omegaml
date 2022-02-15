@@ -82,7 +82,7 @@ setup(
         'celery==4.2.1',
         'joblib>=0.9.4',
         'jupyter-client>=4.1.1',
-        'pymongo>=3.2.2',
+        'pymongo>=3.2.2,<4.0', # 4.x is not compatiblie with mongoengine 0.23.1
         'mongoengine~=0.23.1',
         'pandas>1.1,<1.4',  # 1.1 fails on indexes, 1.4 fails some libraries, e.g. yfinance
         'numpy>=1.16.4',
@@ -90,7 +90,6 @@ setup(
         'scikit-learn>=0.21',
         'PyYAML>=5.1',
         'flask-restx>=0.4.0',
-        'werkzeug<2.0.0',  # https://github.com/noirbizarre/flask-restplus/issues/777#issuecomment-584365577
         'six>=1.11.0',
         'croniter>=0.3.30',
         'nbformat>=4.0.1',

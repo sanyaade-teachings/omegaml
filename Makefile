@@ -1,9 +1,16 @@
 .PHONY: dist image help
 VERSION=$(shell cat omegaml/VERSION)
 
+install:
+	pip install -e .[${EXTRAS}] ${PIPREQ}
+
 test:
 	# add -x to fail on first error
-	unset DJANGO_SETTINGS_MODULE && nosetests -v -s
+	unset DJANGO_SETTINGS_MODULE && nosetests -v -s ${TESTS}
+
+freeze:
+	echo "Writing pip requirements to pip-requirements.lst"
+	pip list --format freeze
 
 sanity:
 	# quick sanity check -- avoid easy mistakes
@@ -89,6 +96,6 @@ bumpfinal:
 	bumpversion release
 
 help:
-		@echo -n "Common make targets"
-		@echo ":"
-		@cat Makefile | grep -A1 -E -e ".*:.*"
+	@echo -n "Common make targets"
+	@echo ":"
+	@cat Makefile | grep -A1 -E -e ".*:.*"

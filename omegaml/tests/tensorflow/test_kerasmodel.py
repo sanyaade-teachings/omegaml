@@ -1,11 +1,14 @@
+import unittest
 from unittest import TestCase
 
 import numpy as np
 
 from omegaml import Omega
 from omegaml.backends.keras import KerasBackend
+from omegaml.util import module_available
 
 
+@unittest.skipUnless(module_available("keras") or module_available("tensorflow.keras"), "keras not available")
 class KerasBackendTests(TestCase):
     def setUp(self):
         self.om = Omega()
