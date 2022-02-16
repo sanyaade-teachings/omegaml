@@ -44,8 +44,8 @@ else:
     keras_deps = ['keras<=2.5']
 
 # all deps
-all_deps = (hdf_deps + tf_deps + keras_deps + graph_deps + dashserve_deps
-            + sql_deps + iotools_deps + streaming_deps + jupyter_deps + snowflake_deps)
+all_deps = (hdf_deps + graph_deps + dashserve_deps + sql_deps + iotools_deps
+            + streaming_deps + jupyter_deps + snowflake_deps)
 client_deps = (hdf_deps + dashserve_deps + sql_deps + iotools_deps + streaming_deps)
 
 setup(

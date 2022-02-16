@@ -77,14 +77,18 @@ function runimage() {
   # docker run arguments
   # --network specifies to use the host network so we can access mongodb, rabbitmq
   # --name name of container, useful for further docker commands
+  # --user, --group-add-users specify the jupyter stacks user
   # -dt deamon with tty
-  # GRANT_SUDO, allow use of sudo e.g. for apt
-  # -- see https://jupyter-docker-stacks.readthedocs.io/en/latest/using/common.html
-  # TESTS, EXTRAS, PIPREQ see Makefile:install
   # -v maps the host path to the container
   # -w container working directory
+  # jupyter stacks options
+  # -- see https://jupyter-docker-stacks.readthedocs.io/en/latest/using/common.html
+  #    GRANT_SUDO, allow use of sudo e.g. for apt
+  # Makefile options
+  # TESTS, EXTRAS, PIPREQ see Makefile:install
   docker run --network host \
              --name omegaml-test \
+             --user $UID --group-add users \
              -dt \
              -e GRANT_SUDO=yes \
              -e TESTS="$tests" \
