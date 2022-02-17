@@ -1,3 +1,4 @@
+import unittest
 from unittest import TestCase
 
 import numpy as np
@@ -7,8 +8,10 @@ from omegaml.backends.tensorflow import TensorflowSavedModelPredictor
 from omegaml.backends.tensorflow.tfkeras import TensorflowKerasBackend
 from omegaml.backends.tensorflow.tfkerassavedmodel import TensorflowKerasSavedModelBackend
 from omegaml.tests.util import OmegaTestMixin, tf_perhaps_eager_execution
+from omegaml.util import module_available
 
 
+@unittest.skipUnless(module_available("tensorflow"))
 class TensorflowKerasBackendTests(OmegaTestMixin, TestCase):
     def setUp(self):
         self.om = Omega()

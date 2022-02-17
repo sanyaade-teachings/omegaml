@@ -1,18 +1,14 @@
-from time import sleep
-
-import platform
+import unittest
 
 import pandas as pd
-import unittest
-from sklearn.datasets import load_iris
-from sklearn.linear_model import LogisticRegression
 
 from omegaml import Omega
-from omegaml.backends.experiment import ExperimentBackend, OmegaSimpleTracker, OmegaProfilingTracker
-from omegaml.documents import Metadata
+from omegaml.backends.experiment import ExperimentBackend
 from omegaml.tests.util import OmegaTestMixin
+from omegaml.util import module_available
 
 
+@unittest.skipUnless(module_available("tensorflow"))
 class TFCallbackTrackingTestCases(OmegaTestMixin, unittest.TestCase):
     """
     notes on framework versions v.v. tracing
@@ -22,6 +18,7 @@ class TFCallbackTrackingTestCases(OmegaTestMixin, unittest.TestCase):
               (=> reports only 9 instead of 10 metrics per run)
             - reports metric='accuracy' as 'acc'
     """
+
     def setUp(self):
         self.om = om = Omega()
         self.clean()

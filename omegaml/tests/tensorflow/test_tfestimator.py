@@ -1,3 +1,4 @@
+import unittest
 from inspect import isfunction
 from unittest import TestCase, skip
 
@@ -6,6 +7,7 @@ from omegaml.backends.tensorflow import _tffn
 from omegaml.backends.tensorflow.tfestimatormodel import TFEstimatorModelBackend, TFEstimatorModel
 from omegaml.backends.virtualobj import virtualobj
 from omegaml.tests.util import OmegaTestMixin, tf_perhaps_eager_execution
+from omegaml.util import module_available
 
 
 def make_data():
@@ -45,7 +47,6 @@ def make_input_fn():
     # we need to use a custom input_fn as the default won't be able to figure
     # out column names from numpy inputs
     def input_fn(mode, X, Y=None, batch_size=1):
-        import tensorflow as tf
         X = {
             'f{}'.format(i + 1): X[:, i] for i in range(X.shape[1])
         }
@@ -53,7 +54,7 @@ def make_input_fn():
 
     return input_fn
 
-
+@unittest.skipUnless(module_available("tensorflow"))
 class TFEstimatorModelBackendTests(OmegaTestMixin, TestCase):
     def setUp(self):
         self.om = Omega()
@@ -294,7 +295,6 @@ class TFEstimatorModelBackendTests(OmegaTestMixin, TestCase):
 
         @virtualobj
         def train_xy_fn(Xname=None, Yname=None, **kwargs):
-            import tensorflow as tf
             import omegaml as om
             X = om.datasets.get(Xname)
             Y = om.datasets.get(Yname)
@@ -303,7 +303,6 @@ class TFEstimatorModelBackendTests(OmegaTestMixin, TestCase):
 
         @virtualobj
         def test_x_fn(Xname=None, **kwargs):
-            import tensorflow as tf
             import omegaml as om
             X = om.datasets.get(Xname)
             dataset = _tffn('pandas_input_fn')(X, shuffle=False)

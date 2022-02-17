@@ -10,7 +10,8 @@ install:
 
 test:
 	# add -x to fail on first error
-	unset DJANGO_SETTINGS_MODULE && nosetests -v -s ${TESTS}
+	# PATH is required for tensorflow images
+	unset DJANGO_SETTINGS_MODULE && PATH=/.local/bin:$PATH nosetests -v -s ${TESTS}
 
 freeze:
 	echo "Writing pip requirements to pip-requirements.lst"

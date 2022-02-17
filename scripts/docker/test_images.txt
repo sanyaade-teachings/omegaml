@@ -2,10 +2,10 @@
 # jupyter stacks data science (including R)
 jupyter/datascience-notebook:python-3.9.7;omegaml.tests;all;;
 # jupyter stacks python (no R)
-jupyter/scipy-notebook:python-3.9.7;omegaml.tests.core;;;
-jupyter/scipy-notebook:python-3.8.8;omegaml.tests.core;;;
-jupyter/scipy-notebook:1386e2046833;omegaml.tests.core;;;;scipy-notebook:py3.7
-jupyter/scipy-notebook:5811dcb711ba;omegaml.tests.core;;;;scipy-notebook:py3.6
+jupyter/scipy-notebook:python-3.9.7;omegaml.tests.core;all;;
+jupyter/scipy-notebook:python-3.8.8;omegaml.tests.core;all;;
+jupyter/scipy-notebook:1386e2046833;omegaml.tests.core;all;;;scipy-notebook:py3.7
+jupyter/scipy-notebook:5811dcb711ba;omegaml.tests.core;all;;;scipy-notebook:py3.6
 # tensorflow
 tensorflow/tensorflow:2.8.0-jupyter;omegaml.tests.tensorflow;;;
 tensorflow/tensorflow:2.7.1-jupyter;omegaml.tests.tensorflow;;;

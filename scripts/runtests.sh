@@ -3,8 +3,8 @@
 ## run tests in multiple environments
 ##    @script.name [option]
 ##
-## This runs the project tests inside multiple docker images and collects
-## results.
+## This runs the project tests by pip installing it in multiple docker images.
+## All results are collected, tar'd and summarised in one go.
 ##
 ## Options:
 ##    --specs=VALUE   specs file, defaults to ./docker/test_images.txt
@@ -17,21 +17,71 @@
 ##
 ##    Specifying --specs overrides --image, --tests, --extras, --labels.
 ##    Specifying no option, or --specs, implies --clean.
+##    To debug tests with some image, use the --image, --tests, --shell options.
+##    The --shell option drops to a bash shell inside the container upon test
+##    completion.
+##
+## Format of the specs file:
+##    The specs file is a CSV file with the following fields. Lines starting
+##    with # are ignored.
+##
+##    # image;test-spec;extras;pipreq;pipopts;label
+##
+##    image       the account/image:tag
+##    test-spec   the names of the tests passed to make install (via TESTS variable)
+##    extras      the packages [extras] to be installed, optional, defaults to [dev]
+##    pipreq      additional pip requirements, optional
+##    pipopts     additional pip options, optional
+##    label       the label for this test, optional. useful if same image listed multiple times
 ##
 ## How it works:
 ##
-## For each image listed in specs file (test_images.txt),
+##    For each image listed in specs file (test_images.txt),
 ##
-## 1. run the docker container, downloading the image if not cached yet
-## 2. install the project (pip install -e)
-## 3. install any additional dependencies, if listed for the image
-## 4. run the tests
-## 5. freeze pip packages (for reproducing and reference)
-## 6. collect test results (creates a tgz for each run)
+##    1. run the docker container, downloading the image if not cached yet
+##    2. install the project (make install)
+##    3. install any additional dependencies, if listed for the image
+##    4. run the tests (make test)
+##    5. freeze pip packages (for reproducing and reference)
+##    6. collect test results (creates a tgz for each run)
 ##
-## Finally, print a test summary and exist with non-zero if any one of the
-## tests failed.
+##    Finally, print a test summary and exist with non-zero if any one of the
+##    tests failed.
 ##
+## Project requirements:
+##
+##     1. Provide a setup.py that works
+##     2. Create a Makefile that has install and test targets
+##        install is called first, then test
+##
+##     The make file gets passed the following variables
+##
+##     install:
+##         PIPOPTS   options to pass to pip (pipopts field in specs)
+##         EXTRAS    extras to install with the package (.[$EXTRAS])
+#                    (extras field in specs)
+##         PIPREQ    additional pip requirements (pipreq fields in specs)
+##
+##     test:
+##         TESTS     the tests to run (test-spec field in specs)
+##
+##     Technically, runtests is oblivious to the commands run by the Makefile.
+##     Typically you would use something like:
+##
+##     install:
+##         pip install ${PIPOPTS} -e[${EXTRAS}] ${PIPREQ}
+##
+##     test:
+##         python -m unittest ${TESTS}
+##
+## Output:
+##     runtests outputs a summary of all tests and their status. If any of the
+##     tests failed it will have exit code 1, else 0.
+##
+##     In addition, for every test a .tgz file is stored in the $logbase
+##     directory. Each tgz contains all output produced by a single test run
+##     against a particular docker image. The .tgz files are named by their
+##     image + test specs (e.g. jupyter/datascience-notebook:python-3.9.7.tgz)
 # script setup to parse options
 script_dir=$(dirname "$0")
 script_dir=$(realpath $script_dir)
@@ -57,7 +107,7 @@ function runimage() {
   label=$6
   # run
   test_label=${label:-${tests//[^[:alnum:]]/_}}
-  echo "INFO runtests: running $tests on $image"
+  echo "INFO runtests: running $tests on $image with extras >$extras<, pipreq >$pipreq<"
   # host name of log directory for this test
   test_logdir=$test_logbase/$(dirname $image)/$(basename $image)/$test_label
   # host name of log file

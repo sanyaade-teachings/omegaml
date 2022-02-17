@@ -1,10 +1,13 @@
+import unittest
 from unittest import TestCase, skipIf
 
 from omegaml import Omega
 from omegaml.backends.tensorflow.tfsavedmodel import TensorflowSavedModelBackend, TensorflowSavedModelPredictor
 from omegaml.tests.util import OmegaTestMixin, tf_in_eager_execution
+from omegaml.util import module_available
 
 
+@unittest.skipUnless(module_available("tensorflow"))
 class TensorflowSavedModelBackendTests(OmegaTestMixin, TestCase):
     def setUp(self):
         self.om = Omega()
