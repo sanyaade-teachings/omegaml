@@ -3,8 +3,6 @@ from inspect import isfunction
 from unittest import TestCase, skip
 
 from omegaml import Omega
-from omegaml.backends.tensorflow import _tffn
-from omegaml.backends.tensorflow.tfestimatormodel import TFEstimatorModelBackend, TFEstimatorModel
 from omegaml.backends.virtualobj import virtualobj
 from omegaml.tests.util import OmegaTestMixin, tf_perhaps_eager_execution
 from omegaml.util import module_available
@@ -43,6 +41,8 @@ def make_estimator_fn():
 
 
 def make_input_fn():
+    from omegaml.backends.tensorflow import _tffn
+
     # create classifier and save untrained
     # we need to use a custom input_fn as the default won't be able to figure
     # out column names from numpy inputs
@@ -54,9 +54,11 @@ def make_input_fn():
 
     return input_fn
 
-@unittest.skipUnless(module_available("tensorflow"))
+@unittest.skipUnless(module_available("tensorflow"), "tensorflow not available")
 class TFEstimatorModelBackendTests(OmegaTestMixin, TestCase):
     def setUp(self):
+        from omegaml.backends.tensorflow.tfestimatormodel import TFEstimatorModelBackend
+
         self.om = Omega()
         self.om.models.register_backend(TFEstimatorModelBackend.KIND, TFEstimatorModelBackend)
         self.clean()
@@ -64,6 +66,8 @@ class TFEstimatorModelBackendTests(OmegaTestMixin, TestCase):
 
     def test_fit_predict(self):
         import tensorflow as tf
+        from omegaml.backends.tensorflow.tfestimatormodel import TFEstimatorModel
+
         om = self.om
         # create classifier
         estmdl = TFEstimatorModel(estimator_fn=make_estimator_fn())
@@ -84,6 +88,8 @@ class TFEstimatorModelBackendTests(OmegaTestMixin, TestCase):
 
     def test_fit_predict_from_numpy(self):
         import tensorflow as tf
+        from omegaml.backends.tensorflow.tfestimatormodel import TFEstimatorModel
+
         om = self.om
         # note we use a custom input_fn
         estmdl = TFEstimatorModel(estimator_fn=make_estimator_fn(), input_fn=make_input_fn())
@@ -107,6 +113,8 @@ class TFEstimatorModelBackendTests(OmegaTestMixin, TestCase):
         self.assertIn('classes', predict[0])
 
     def test_save_load_unfitted(self):
+        from omegaml.backends.tensorflow.tfestimatormodel import TFEstimatorModel
+
         om = self.om
         # create classifier and save
         estmdl = TFEstimatorModel(estimator_fn=make_estimator_fn())
@@ -123,6 +131,8 @@ class TFEstimatorModelBackendTests(OmegaTestMixin, TestCase):
         self.assertIn('classes', predict[0])
 
     def test_save_load_estimator_model(self):
+        from omegaml.backends.tensorflow.tfestimatormodel import TFEstimatorModel
+
         import tensorflow as tf
         om = self.om
         # create classifier and save
@@ -139,6 +149,8 @@ class TFEstimatorModelBackendTests(OmegaTestMixin, TestCase):
         self.assertIsInstance(estmdl_r.estimator_fn(), tf.estimator.Estimator)
 
     def test_save_load_fitted(self):
+        from omegaml.backends.tensorflow.tfestimatormodel import TFEstimatorModel
+
         import numpy as np
         om = self.om
         # create classifier and save
@@ -158,6 +170,8 @@ class TFEstimatorModelBackendTests(OmegaTestMixin, TestCase):
         self.assertTrue(np.allclose(predict_r[0]['probabilities'], predict[0]['probabilities']))
 
     def test_save_load_fitted_estimator(self):
+        from omegaml.backends.tensorflow.tfestimatormodel import TFEstimatorModel
+
         import numpy as np
         om = self.om
         # create classifier and save
@@ -178,6 +192,8 @@ class TFEstimatorModelBackendTests(OmegaTestMixin, TestCase):
         self.assertTrue(np.allclose(predict_r[0]['probabilities'], predict[0]['probabilities']))
 
     def test_save_load_fitted_inerror(self):
+        from omegaml.backends.tensorflow.tfestimatormodel import TFEstimatorModel
+
         import numpy as np
         om = self.om
         # create classifier and save untrained
@@ -203,6 +219,8 @@ class TFEstimatorModelBackendTests(OmegaTestMixin, TestCase):
         self.assertFalse(np.allclose(predict_r[0]['probabilities'], predict[0]['probabilities']))
 
     def test_runtime_fit(self):
+        from omegaml.backends.tensorflow.tfestimatormodel import TFEstimatorModel
+
         import pandas as pd
         om = self.om
         # create classifier and save untrained, note we use the default input_fn
@@ -221,6 +239,8 @@ class TFEstimatorModelBackendTests(OmegaTestMixin, TestCase):
         self.assertIsInstance(result, pd.DataFrame)
 
     def test_runtime_predict_from_numpy(self):
+        from omegaml.backends.tensorflow.tfestimatormodel import TFEstimatorModel
+
         import pandas as pd
         om = self.om
         estmdl = TFEstimatorModel(estimator_fn=make_estimator_fn(), input_fn=make_input_fn())
@@ -242,6 +262,8 @@ class TFEstimatorModelBackendTests(OmegaTestMixin, TestCase):
 
     @skip("not supported yet as we don't have a good way to store feature dicts")
     def test_runtime_predict_from_numpy_default_inputfn(self):
+        from omegaml.backends.tensorflow.tfestimatormodel import TFEstimatorModel
+
         import pandas as pd
         om = self.om
         estmdl = TFEstimatorModel(estimator_fn=make_estimator_fn())
@@ -272,6 +294,8 @@ class TFEstimatorModelBackendTests(OmegaTestMixin, TestCase):
         self.assertIsInstance(result, pd.DataFrame)
 
     def test_runtime_score(self):
+        from omegaml.backends.tensorflow.tfestimatormodel import TFEstimatorModel
+
         import pandas as pd
         om = self.om
         # create classifier and save untrained
@@ -291,6 +315,9 @@ class TFEstimatorModelBackendTests(OmegaTestMixin, TestCase):
 
     def test_predict_from_objecthandler(self):
         import tensorflow as tf
+        from omegaml.backends.tensorflow import _tffn
+        from omegaml.backends.tensorflow.tfestimatormodel import TFEstimatorModel
+
         om = self.om
 
         @virtualobj

@@ -4,16 +4,16 @@ from unittest import TestCase
 import numpy as np
 
 from omegaml import Omega
-from omegaml.backends.tensorflow import TensorflowSavedModelPredictor
-from omegaml.backends.tensorflow.tfkeras import TensorflowKerasBackend
-from omegaml.backends.tensorflow.tfkerassavedmodel import TensorflowKerasSavedModelBackend
 from omegaml.tests.util import OmegaTestMixin, tf_perhaps_eager_execution
 from omegaml.util import module_available
 
 
-@unittest.skipUnless(module_available("tensorflow"))
+@unittest.skipUnless(module_available("tensorflow"), "tensorflow not available")
 class TensorflowKerasBackendTests(OmegaTestMixin, TestCase):
     def setUp(self):
+        from omegaml.backends.tensorflow.tfkeras import TensorflowKerasBackend
+        from omegaml.backends.tensorflow.tfkerassavedmodel import TensorflowKerasSavedModelBackend
+
         self.om = Omega()
         self.om.models.register_backend(TensorflowKerasBackend.KIND, TensorflowKerasBackend)
         self.om.models.register_backend(TensorflowKerasSavedModelBackend.KIND, TensorflowKerasSavedModelBackend)
@@ -96,6 +96,8 @@ class TensorflowKerasBackendTests(OmegaTestMixin, TestCase):
         self.assertEqual(result.shape, (100, 10))
 
     def test_save_load_savedmodel(self):
+        from omegaml.backends.tensorflow import TensorflowSavedModelPredictor
+
         om = self.om
         model = self._build_model(fit=True)
         x_test = np.random.random((100, 20))

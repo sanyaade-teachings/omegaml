@@ -14,6 +14,8 @@
 ##    --label=VALUE   the label for this test
 ##    --clean         clean testlogs before starting
 ##    --shell         enter shell after running tests
+##    --rmi           remove images after completion of tests
+##    --verbose       print more messages
 ##
 ##    Specifying --specs overrides --image, --tests, --extras, --labels.
 ##    Specifying no option, or --specs, implies --clean.
@@ -90,7 +92,7 @@ source $script_dir/easyoptions || exit
 # location of project source under test (matches in-container $test_base)
 sources_dir=$script_dir/..
 # all images we want to test, and list of tests
-test_images=${specs:-$script_dir/docker/test_images.txt}
+test_images=${specs:-$script_dir/docker/test_images_minimal.txt}
 # in-container location of project source under test
 test_base=/var/project
 # host log files
@@ -121,8 +123,10 @@ function runimage() {
   extras=${extras:-dev}
   pipreq=${pipreq:-pip}
   docker rm -f omegaml-test
-  echo "INFO runtests pulling docker images (quiet)"
-  docker pull -q $image
+  if [[ -z $verbose ]]; then
+    echo "INFO runtests pulling docker images (quiet)"
+    docker pull -q $image
+  fi
   echo "INFO runtests starting tests now"
   # docker run arguments
   # --network specifies to use the host network so we can access mongodb, rabbitmq
@@ -167,7 +171,7 @@ function runauto() {
   # images to test against
   while IFS=';' read -r image tests extras pipreq pipopts label; do
     runimage "$image" "$tests" "$extras" "$pipreq" "$pipopts" "$label"
-    docker rmi --force $image
+    [[ ! -z $rmi ]] && docker rmi --force $image
   done < <(cat $test_images | grep -v "#")
 }
 

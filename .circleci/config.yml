@@ -50,7 +50,7 @@ jobs:
             }
             if [[ $CIRCLE_BRANCH = "release-build" ]]; then
               # actual specs are in scripts/docker/test_images.txt
-              scripts/runtests.sh
+              scripts/runtests.sh --rmi --specs scripts/docker/test_images_minimal.txt
             else
               # if this is not a release build, do a quick build for speed
               PYVER=3.9
