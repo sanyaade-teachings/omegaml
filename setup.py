@@ -132,3 +132,4 @@ setup(
         'console_scripts': ['om=omegaml.client.cli:climain'],
     }
 )
+

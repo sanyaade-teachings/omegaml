@@ -7,7 +7,7 @@
 ## All results are collected, tar'd and summarised in one go.
 ##
 ## Options:
-##    --specs=VALUE   specs file, defaults to ./docker/test_images.txt
+##    --specs=VALUE   specs file, defaults to ./docker/test_images.ini
 ##    --image=VALUE   the image to run tests for
 ##    --tests=VALUE   the tests to run as package.module
 ##    --extras=VALUE  extras to install before running
@@ -16,6 +16,8 @@
 ##    --shell         enter shell after running tests
 ##    --rmi           remove images after completion of tests
 ##    --verbose       print more messages
+##    --specid=VALUE  specify the section in ini file
+##    --describe      list all specids in file
 ##
 ##    Specifying --specs overrides --image, --tests, --extras, --labels.
 ##    Specifying no option, or --specs, implies --clean.
@@ -24,21 +26,30 @@
 ##    completion.
 ##
 ## Format of the specs file:
-##    The specs file is a CSV file with the following fields. Lines starting
-##    with # are ignored.
+##    The specs file is a ini file with the following fields per section.
+##    Each section specifies a docker image along with tests to execute. All
+##    other fields are optional
 ##
-##    # image;test-spec;extras;pipreq;pipopts;label
+##    [section]
+##    image=<image:tag>
+##    tests=<test-spec>
+##    extras=<extras>
+##    pipreq=<pipreq>
+##    pipopts=<pipopts>
+##    dockeropts=<docker opts>
+##    label=<label>
 ##
 ##    image       the account/image:tag
 ##    test-spec   the names of the tests passed to make install (via TESTS variable)
 ##    extras      the packages [extras] to be installed, optional, defaults to [dev]
 ##    pipreq      additional pip requirements, optional
 ##    pipopts     additional pip options, optional
+##    dockeropts  additional docker run options to create the container
 ##    label       the label for this test, optional. useful if same image listed multiple times
 ##
 ## How it works:
 ##
-##    For each image listed in specs file (test_images.txt),
+##    For each image listed in specs file (e.g. --specs test_images.ini),
 ##
 ##    1. run the docker container, downloading the image if not cached yet
 ##    2. install the project (make install)
@@ -88,11 +99,12 @@
 script_dir=$(dirname "$0")
 script_dir=$(realpath $script_dir)
 source $script_dir/easyoptions || exit
+source $script_dir/read_ini.sh
 
 # location of project source under test (matches in-container $test_base)
 sources_dir=$script_dir/..
 # all images we want to test, and list of tests
-test_images=${specs:-$script_dir/docker/test_images_minimal.txt}
+test_images=${specs:-$script_dir/docker/test_images_minimal.ini}
 # in-container location of project source under test
 test_base=/var/project
 # host log files
@@ -106,10 +118,11 @@ function runimage() {
   extras=$3
   pipreq=$4
   pipopts=$5
-  label=$6
+  dockeropts=$6
+  label=$7
   # run
   test_label=${label:-${tests//[^[:alnum:]]/_}}
-  echo "INFO runtests: running $tests on $image with extras >$extras<, pipreq >$pipreq<"
+  echo "INFO runtests: running tests=$tests image=$image extras=>$extras<, pipreq=>$pipreq<, dockeropts=>$dockeropts<"
   # host name of log directory for this test
   test_logdir=$test_logbase/$(dirname $image)/$(basename $image)/$test_label
   # host name of log file
@@ -142,8 +155,9 @@ function runimage() {
   # TESTS, EXTRAS, PIPREQ see Makefile:install
   docker run --network host \
              --name omegaml-test \
-             --user $UID --group-add users \
+             --user $(id -u):$(id -g) --group-add users \
              -dt \
+             $dockeropts \
              -e GRANT_SUDO=yes \
              -e TESTS="$tests" \
              -e EXTRAS="dev,$extras" \
@@ -153,8 +167,14 @@ function runimage() {
              -w $test_base $image \
              bash
   # run commands, collect results, cleanup
+  # -- some images require adding a user explicitly
+  #    e.g. on circleci, the user does not exist yet causing downstream errors
+  #    solution adopted from https://stackoverflow.com/questions/48527958/docker-error-getting-username-from-password-database
+  #    due to https://jupyter-docker-stacks.readthedocs.io/en/latest/using/common.html#user-related-configurations
+  #    this may issue a "UID NNN ist not unique" message, not a problem
+  docker exec --user root omegaml-test bash -c "useradd -u $(id -u) -g users testuser"
   # -- some images don't have make installed, e.g. https://github.com/jupyter/docker-stacks/issues/1625
-  docker exec -e GRANT_SUDO=yes --user root omegaml-test bash -c "which make || apt update && apt -y install build-essential"
+  docker exec --user root omegaml-test bash -c "which make || apt update && apt -y install build-essential"
   docker exec omegaml-test bash -c 'make install test; echo $? > /tmp/test.status' 2>&1 | tee -a $test_logfn
   docker exec omegaml-test bash -c "cat /tmp/test.status" | xargs -I RC echo "$test_logdir==RC" >> $test_logrc
   docker exec omegaml-test bash -c "pip list --format freeze" | tee -a ${test_pipfn}
@@ -166,13 +186,35 @@ function runimage() {
   echo "INFO runtests tests completed."
 }
 
-function runauto() {
-  # run tests from image specs
+function runauto_csv() {
+  # run tests from image specs in csv file
   # images to test against
-  while IFS=';' read -r image tests extras pipreq pipopts label; do
-    runimage "$image" "$tests" "$extras" "$pipreq" "$pipopts" "$label"
+  while IFS=';' read -r image tests extras pipreq pipopts dockeropts label; do
+    runimage "$image" "$tests" "$extras" "$pipreq" "$pipopts" "$dockeropts" "$label"
     [[ ! -z $rmi ]] && docker rmi --force $image
   done < <(cat $test_images | grep -v "#")
+}
+
+
+function runauto() {
+  # see https://github.com/rudimeier/bash_ini_parser
+  read_ini $test_images
+  if [[ ! -z $describe ]]; then
+    echo $INI__ALL_SECTIONS
+    exit 0
+  fi
+  [[ ! -z $specid ]] && INI__ALL_SECTIONS=$specid
+  for section in $INI__ALL_SECTIONS; do
+    declare -n v="INI__${section}__image";image="${v}"
+    declare -n v="INI__${section}__tests";tests="${v}"
+    declare -n v="INI__${section}__extras";extras="${v}"
+    declare -n v="INI__${section}__pipreq";pipreq="${v}"
+    declare -n v="INI__${section}__pipopts";pipopts="${v}"
+    declare -n v="INI__${section}__dockeropts";dockeropts="${v}"
+    declare -n v="INI__${section}__label";label="${v}"
+    runimage "$image" "$tests" "$extras" "$pipreq" "$pipopts" "$dockeropts" "$label"
+    [[ ! -z $rmi ]] && docker rmi --force $image
+  done
 }
 
 function clean() {
@@ -200,7 +242,7 @@ function main() {
     clean
   fi
   if [ ! -z $image ]; then
-    runimage "$image" "$tests" "$extras" "$pipreq" "$pipopts" "$label"
+    runimage "$image" "$tests" "$extras" "$pipreq" "$pipopts" "$dockeropts" "$label"
     summary
   else
     clean
@@ -210,3 +252,4 @@ function main() {
 }
 
 main
+

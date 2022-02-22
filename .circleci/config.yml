@@ -50,7 +50,7 @@ jobs:
             }
             if [[ $CIRCLE_BRANCH = "release-build" ]]; then
               # actual specs are in scripts/docker/test_images.txt
-              scripts/runtests.sh --rmi --specs scripts/docker/test_images_minimal.txt
+              scripts/runtests.sh --rmi --specs scripts/docker/test_images_minimal.ini
             else
               # if this is not a release build, do a quick build for speed
               PYVER=3.9
@@ -62,7 +62,9 @@ jobs:
           name: Run live tests
           command: |
             source miniforge3/etc/profile.d/conda.sh
-            conda activate omenv3.9
+            PYVER=3.9
+            conda create -q -y -n omenv$VER python=$VER
+            conda activate omenv$VER
             mkdir -p ~/.omegaml
             echo $BEHAVE_YML | base64 -d > ~/.omegaml/behave.yml
             ls -lart ~/.omegaml
@@ -107,7 +109,6 @@ jobs:
               # setup pyenv and build
               conda create -q -y -n omenv$PYVER python=$PYVER
               conda activate omenv$PYVER
-              pip install --progress-bar off .[all,dev,mlflow]
               # set bdist_wheel options, see Makefile:dist
               export DISTTAGS="--python-tag py$(echo $PYVER | tr -d .)"
               if [[ "$VERSION" =~ "-rc" || "$VERSION" =~ "-dev" ]]; then
