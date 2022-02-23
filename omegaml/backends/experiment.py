@@ -260,7 +260,7 @@ class OmegaSimpleTracker(TrackingProvider):
             rawdata = obj.to_json()
         elif self._model_store.get_backend_byobj(obj) is not None:
             objname = uuid4().hex
-            meta = self._model_store.put(obj, f'experiments/.artefacts/{objname}')
+            meta = self._model_store.put(obj, f'.experiments/.artefacts/{objname}')
             format = 'model'
             rawdata = meta.name
         elif self._store.get_backend_by_obj(obj) is not None:
