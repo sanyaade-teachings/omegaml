@@ -104,11 +104,13 @@ jobs:
             sleep 10
             docker exec -i $(docker ps -qf name=mongo) mongo < scripts/mongoinit.js
             # build python specific wheel to allow dependency matching, e.g. tensorflow 2.5 requires py3.9
+            # TODO consider using https://cibuildwheel.readthedocs.io
             for PYVER in 3.7 3.8 3.9; do
               echo "Building distribution for $PYVER"
               # setup pyenv and build
               conda create -q -y -n omenv$PYVER python=$PYVER
               conda activate omenv$PYVER
+              pip install twine
               # set bdist_wheel options, see Makefile:dist
               export DISTTAGS="--python-tag py$(echo $PYVER | tr -d .)"
               if [[ "$VERSION" =~ "-rc" || "$VERSION" =~ "-dev" ]]; then
