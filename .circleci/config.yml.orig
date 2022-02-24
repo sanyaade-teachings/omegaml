@@ -3,7 +3,7 @@ jobs:
   test:
     working_directory: /home/circleci
     machine:
-      image: ubuntu-2004:202107-02
+      image: ubuntu-1604:201903-01
     steps:
       - checkout:
           path: /home/circleci/omegaml-ce
@@ -23,7 +23,7 @@ jobs:
               echo "Not a PR build."
             fi
       - run:
-          name: Install Miniforge
+          name: Install Miniconda
           command: |
             curl -L -O --silent --show-error "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh"
             bash Miniforge3-Linux-x86_64.sh -b
@@ -39,33 +39,53 @@ jobs:
             docker exec -i $(docker ps -qf name=mongo) mongo < scripts/mongoinit.js
             function dotest() {
               export VER=$1
-              export EXTRAS=all,dev,mlflow
+              export TF_VERSION=$2
               conda env remove -q -y -n omenv$VER || echo ""
-              echo "Testing with python $VER"
+              echo "Testing with python $VER tensorflow $TF_VERSION"
               conda create -q -y -n omenv$VER python=$VER
               conda activate omenv$VER
-              make install
+<<<<<<< HEAD
+              pip install --progress-bar off .[all,dev,mlflow]
+=======
+              scripts/setup-r.sh
+              pip install --progress-bar off .[all,dev]
+>>>>>>> enable r integration
               make test
               conda deactivate
             }
             if [[ $CIRCLE_BRANCH = "release-build" ]]; then
-              # actual specs are in scripts/docker/test_images.txt
-              scripts/runtests.sh --rmi --specs scripts/docker/test_images_minimal.ini
+              # due to different allowed combinations we need several loops
+              # we dont use tox because tox assumes python version is installed already
+              # py36
+              for TF_VERSION in 1.15.3 2.2.0 2.3.0 2.3.1 2.4.0; do
+                dotest 3.6 $TF_VERSION
+              done
+              # py37 py38
+              for PYVER in 3.7 3.8; do
+                for TF_VERSION in 2.2.0 2.3.0 2.3.1 2.4.0; do
+                  dotest $PYVER $TF_VERSION
+                done
+              done
+              # py39
+              # tensorflow does not support 3.9 yet
+              # see https://github.com/tensorflow/tensorflow/issues/44485
+              #     https://github.com/tensorflow/tensorflow/issues/44400
+              PYVER=3.9
+              for TF_VERSION in 2.4.0; do
+                dotest $PYVER $TF_VERSION
+              done
+              # end tests
             else
               # if this is not a release build, do a quick build for speed
-              PYVER=3.9
-              dotest $PYVER
+              dotest 3.7
             fi
             docker-compose down --remove-orphans
           shell: /bin/bash -l -eo pipefail
       - run:
           name: Run live tests
           command: |
-            source miniforge3/etc/profile.d/conda.sh
-            PYVER=3.9
-            conda create -q -y -n omenv$VER python=$VER
-            conda activate omenv$VER
-            pip install twine
+            source miniconda3/etc/profile.d/conda.sh
+            conda activate omenv3.7
             mkdir -p ~/.omegaml
             echo $BEHAVE_YML | base64 -d > ~/.omegaml/behave.yml
             ls -lart ~/.omegaml
@@ -75,8 +95,6 @@ jobs:
           shell: /bin/bash -l -eo pipefail
       - store_artifacts:
           path: /tmp/screenshots
-      - store_artifacts:
-          path: /tmp/testlogs
   release:
     working_directory: /home/circleci
     machine:
@@ -85,14 +103,14 @@ jobs:
       - checkout:
           path: /home/circleci/omegaml-ce
       - run:
-          name: Install Miniforge
+          name: Install Miniconda
           command: |
-            curl -L -O --silent --show-error "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh"
-            bash Miniforge3-Linux-x86_64.sh -b
+            curl -O --silent --show-error https://repo.anaconda.com/miniconda/Miniconda3-4.5.12-Linux-x86_64.sh
+            sh Miniconda3-4.5.12-Linux-x86_64.sh -b
       - run:
           name: Make image and pypi
           command: |
-            source miniforge3/etc/profile.d/conda.sh
+            source miniconda3/etc/profile.d/conda.sh
             mkdir -p ~/.omegaml
             echo $BEHAVE_YML | base64 -d > ~/.omegaml/behave.yml
             echo $PYPIRC_INI | base64 -d > ~/.pypirc
@@ -105,16 +123,14 @@ jobs:
             sleep 10
             docker exec -i $(docker ps -qf name=mongo) mongo < scripts/mongoinit.js
             # build python specific wheel to allow dependency matching, e.g. tensorflow 2.5 requires py3.9
-            # TODO consider using https://cibuildwheel.readthedocs.io
             for PYVER in 3.7 3.8 3.9; do
               echo "Building distribution for $PYVER"
               # setup pyenv and build
               conda create -q -y -n omenv$PYVER python=$PYVER
               conda activate omenv$PYVER
-              pip install -e .[dev]
+              pip install --progress-bar off .[all,dev,mlflow]
               # set bdist_wheel options, see Makefile:dist
               export DISTTAGS="--python-tag py$(echo $PYVER | tr -d .)"
-              export LIVETEST_BEHAVE_EXTRA_OPTS="--tags ~tfestimator --tags ~tfkeras --tags ~snowflake" make livetest
               if [[ "$VERSION" =~ "-rc" || "$VERSION" =~ "-dev" ]]; then
                 make release-test
               else
