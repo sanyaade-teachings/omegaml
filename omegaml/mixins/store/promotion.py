@@ -22,16 +22,21 @@ class PromotionMixin(object):
         Returns:
             The Metadata of the new object
         """
-        if self == other:
-            raise ValueError('cannot promote to self')
+        # sanity checks
+        # -- promotion to same store requires a different name
+        if self == other and not asname:
+            raise ValueError('cannot promote to self without asname=')
+        # -- promotion by same name requires a different store
+        meta = self.metadata(name)
+        asname = asname or meta.name
+        if name == asname and self == other:
+            raise ValueError(f'must specify asname= different from {meta.name}')
         # see if the backend supports explicit promotion
         backend = self.get_backend(name)
         if hasattr(backend, 'promote'):
             return backend.promote(name, other, asname=asname, **kwargs)
         # do default promotion, i.e. copy
-        meta = self.metadata(name)
         obj = self.get(name)
-        asname = asname or meta.name
         other.drop(asname, force=True) if drop else None
         # TODO refactor to promote of python native data backend
         if meta.kind == MDREGISTRY.PYTHON_DATA:

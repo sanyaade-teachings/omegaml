@@ -316,6 +316,15 @@ class OmegaRuntime(object):
         """
         return self._inspect.active_queues()
 
+    def labels(self):
+        """ list available labels
+
+        Returns:
+            dict of workers => list of lables
+        """
+        return { worker: [q.get('name') for q in queues]
+                          for worker, queues in self.queues().items()}
+
     def stats(self):
         """ worker statistics
 
