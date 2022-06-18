@@ -12,9 +12,7 @@ from omegaml.util import tensorflow_available, keras_available, module_available
 
 # determine how we're run
 is_cli_run = os.path.basename(sys.argv[0]) == 'om'
-is_test_run = any(m in [basename(arg) for arg in ' '.join(sys.argv).split(' ')]
-                  for m in ('unittest', 'test', 'nosetests', 'noserunner', '_jb_unittest_runner.py',
-                            '_jb_nosetest_runner.py')) or os.environ.get('OMEGA_TEST_MODE')
+is_test_run = os.environ.get('OMEGA_TEST_MODE') or any('test' in arg for arg in sys.argv)
 truefalse = lambda v: (v if isinstance(v, bool) else
                        any(str(v).lower().startswith(c) for c in ('y', 't', '1')))
 
