@@ -39,7 +39,7 @@ class PromotionMixin(object):
         # see if the backend supports explicit promotion
         backend = self.get_backend(name)
         if hasattr(backend, 'promote'):
-            return backend.promote(name, other, asname=asname, **kwargs)
+            return backend.promote(name, other, asname=asname, drop=drop, **kwargs)
         # do default promotion, i.e. copy
         meta = self.metadata(name)
         obj = self.get(name)
