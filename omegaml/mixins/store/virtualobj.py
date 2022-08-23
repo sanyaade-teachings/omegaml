@@ -9,8 +9,8 @@ class VirtualObjectMixin(object):
 
     This checks if an object is a VirtualObject and if so
     retrieves the handler and processes it.
-    """
 
+    """
     def __init__(self):
         self.__meta = None
 
