@@ -73,6 +73,10 @@ class VirtualObjectBackend(BaseDataBackend):
     """
     KIND = 'virtualobj.dill'
 
+    # TODO: make more resilient by optionally storing the source code
+    #       to store: inspect.getsource() => source: str
+    #       to run: exec(source) => func()
+
     @classmethod
     def supports(self, obj, name, **kwargs):
         return callable(obj) and getattr(obj, '_omega_virtual', False)
@@ -97,7 +101,11 @@ class VirtualObjectBackend(BaseDataBackend):
     def get(self, name, version=-1, force_python=False, lazy=False, **kwargs):
         meta = self.model_store.metadata(name)
         outf = meta.gridfile
-        obj = dill.load(outf)
+        # compat: Python 3.8.x < 3.8.2
+        # https://github.com/python/cpython/commit/b19f7ecfa3adc6ba1544225317b9473649815b38
+        # https://bugs.python.org/issue39681
+        # https://docs.python.org/3.8/whatsnew/changelog.html#python-3-8-2-final
+        obj = dill.loads(outf.read())
         outf.close()
         return obj
 
@@ -116,6 +124,22 @@ class VirtualObjectBackend(BaseDataBackend):
         data = args[0] if args else None
         kwargs['args'] = args
         return handler(method='run', data=data, meta=meta, store=self.data_store, tracking=self.tracking, **kwargs)
+
+    def promote(self, name, other, asname=None, drop=False, **kwargs):
+        """
+        Args:
+            name: The name of the object
+            other: the OmegaStore instance to promote to
+            asname: the name to use in other, defaults to .metadata(name).name
+            kwargs: will be forwarded to other.put
+        """
+        meta = self.data_store.metadata(name)
+        import pdb; pdb.set_trace()
+        obj = self.data_store.get(name, raw=True)
+        asname = asname or meta.name
+        other.drop(asname, force=True) if drop else None
+        other_meta = other.put(obj, asname, replace=True, raw=True, **kwargs)
+        return other_meta
 
     def reduce(self, modelname, results, rName=None, **kwargs):
         """
