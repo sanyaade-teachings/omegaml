@@ -14,4 +14,5 @@ source $script_dir/easyoptions || exit
 # install
 # -- note we use miniforge/conda-forge, thus channel is conda-forge, not r
 conda install -y r-essentials
-R -f $script_dir/../omegaml/runtimes/rsystem/install.R
+omegaml_dir=$(python -c "import omegaml, pathlib as pl; print(pl.Path(omegaml.__file__).parent)")
+R -f $omegaml_dir/runtimes/rsystem/install.R

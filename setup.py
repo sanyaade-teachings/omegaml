@@ -54,7 +54,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     data_files=[
-        ('omegaml/docs/', glob.glob('./docs/source/nb/*.ipynb')),
+        ('omegaml/docs', glob.glob('./docs/source/nb/*.ipynb')),
         ('omegaml/runtimes/rsystem', glob.glob('./runtimes/rsystem/*.R')),
     ],
     scripts=glob.glob('./scripts/runtime/*'),
@@ -96,7 +96,7 @@ setup(
         'nbformat>=4.0.1',
         'nbconvert>=5.4.1',
         'jsonschema<4', # due to nbconvert, https://github.com/executablebooks/jupyter-book/issues/1483
-        'Jinja2<=3.0' # due to nbconvert, https://github.com/jupyter/nbconvert/issues/1605
+        'Jinja2<=3.0', # due to nbconvert, https://github.com/jupyter/nbconvert/issues/1605
         'ipython_genutils', # due to nbconvert, https://github.com/jupyter/nbconvert/pull/1726
         'dill>=0.3.2',
         'tee>=0.0.3',

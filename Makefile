@@ -11,7 +11,7 @@ install:
 	pip install --ignore-installed -U pip
 	[ -f .gitlinks ] && pip install gil && gil clone && pip install -r requirements.dev
 	pip install ${PIPOPTS} --progress-bar off -e ".[${EXTRAS}]" "${PIPREQ}"
-	(which R && scripts/setup-r.sh) || echo "R is not installed"
+	(which R && scripts/runtime/setup-r.sh) || echo "R is not installed"
 
 test:
 	# add -x to fail on first error
