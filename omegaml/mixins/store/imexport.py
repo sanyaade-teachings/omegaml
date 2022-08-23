@@ -95,7 +95,7 @@ class OmegaExportArchive:
         self.manifest = self._read_manifest()
 
     def compress(self):
-        dt = datetime.utcnow().isoformat()
+        dt = datetime.utcnow().isoformat().replace(':', '')
         tfn = self.path.parent / f'{self.path.name}-{dt}.tgz'
         Path(tfn).unlink(missing_ok=True)
         with tarfile.open(tfn, 'w:gz') as tar:
