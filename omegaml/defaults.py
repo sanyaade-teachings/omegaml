@@ -70,6 +70,7 @@ OMEGA_CELERY_CONFIG = {
         },
     },
     'BROKER_USE_SSL': OMEGA_USESSL,
+    'CELERYD_HIJACK_ROOT_LOGGER': False,
 }
 #: enable cloud worker routing
 OMEGA_TASK_ROUTING_ENABLED = os.environ.get('OMEGA_TASK_ROUTING_ENABLED', False)

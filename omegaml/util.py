@@ -1,6 +1,7 @@
 from __future__ import absolute_import
-
 import pathlib
+import socket
+from celery.app.log import TaskFormatter
 
 from pathlib import Path
 
@@ -123,8 +124,8 @@ def settings(reload=False):
         return __settings
     try:
         # see if we're running as a django app
-        from django.contrib.auth.models import User
-        from django.conf import settings as djsettings  # @UnresolvedImport
+        from django.contrib.auth.models import User # noqa
+        from django.conf import settings as djsettings  # noqa
         try:
             getattr(djsettings, 'SECRET_KEY')
         except Exception as e:
@@ -232,8 +233,9 @@ def get_rdd_from_df(df):
     """
     takes a pandas df and returns a spark RDD
     """
-    from pyspark import SparkContext, SQLContext
-    from pyspark.mllib.linalg import Vectors
+    # injected from environment
+    from pyspark import SparkContext, SQLContext # noqa
+    from pyspark.mllib.linalg import Vectors # noqa
     sc = SparkContext.getOrCreate()
     from warnings import warn
     warn(
@@ -252,7 +254,7 @@ def get_labeledpoints(Xname, Yname):
     returns a labeledpoint RDD from the datasets provided
     """
     import omegaml as om
-    from pyspark.mllib.regression import LabeledPoint
+    from pyspark.mllib.regression import LabeledPoint # noqa
     # import from datastore
     X = om.datasets.get(Xname)
     Y = om.datasets.get(Yname)
@@ -267,7 +269,7 @@ def get_labeled_points_from_rdd(rdd):
     """
     returns a labeledpoint from the RDD provided
     """
-    from pyspark.mllib.regression import LabeledPoint
+    from pyspark.mllib.regression import LabeledPoint # noqa
     return rdd.map(lambda x: LabeledPoint(float(x[0]), x[1:]))
 
 
@@ -778,8 +780,9 @@ def base_loader(_base_config):
         return _omega, 'custom'
 
     def load_commercial():
-        from omegaee import omega as _omega
-        from omegaee import eedefaults as _base_config_ee
+        # injected from environment
+        from omegaee import omega as _omega # noqa
+        from omegaee import eedefaults as _base_config_ee # noqa
         _base_config.update_from_obj(_base_config_ee, attrs=_base_config)
         return _omega, 'commercial'
 
@@ -1066,6 +1069,33 @@ class IterableJsonDump(list):
 
 
 isTrue = lambda v: v if isinstance(v, bool) else (v.lower() in ['yes', 'y', 't', 'true', '1'])
+
+
+class HostnameInjectingFilter(logging.Filter):
+    def __init__(self):
+        self.hostname = socket.gethostname()
+
+    def filter(self, record):
+        record.hostname = self.hostname
+        return True
+
+
+class TaskInjectingFilter(logging.Filter):
+    def filter(self, record):
+        from celery._state import get_current_task
+        task = get_current_task()
+        if task and task.request:
+            record.__dict__.update(task_id=task.request.id,
+                                   task_name=task.name,
+                                   user_id=getattr(task, 'current_userid', '???'))
+        else:
+            record.__dict__.setdefault('task_name', '???')
+            record.__dict__.setdefault('task_id', '???')
+        return True
+
+
+hostnameFilter = lambda *args, **kwargs: HostnameInjectingFilter()
+taskFilter = lambda *args, **kwargs: TaskInjectingFilter()
 
 
 class SystemPosixPath(type(Path()), Path):
