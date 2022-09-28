@@ -1071,33 +1071,6 @@ class IterableJsonDump(list):
 isTrue = lambda v: v if isinstance(v, bool) else (v.lower() in ['yes', 'y', 't', 'true', '1'])
 
 
-class HostnameInjectingFilter(logging.Filter):
-    def __init__(self):
-        self.hostname = socket.gethostname()
-
-    def filter(self, record):
-        record.hostname = self.hostname
-        return True
-
-
-class TaskInjectingFilter(logging.Filter):
-    def filter(self, record):
-        from celery._state import get_current_task
-        task = get_current_task()
-        if task and task.request:
-            record.__dict__.update(task_id=task.request.id,
-                                   task_name=task.name,
-                                   user_id=getattr(task, 'current_userid', '???'))
-        else:
-            record.__dict__.setdefault('task_name', '???')
-            record.__dict__.setdefault('task_id', '???')
-        return True
-
-
-hostnameFilter = lambda *args, **kwargs: HostnameInjectingFilter()
-taskFilter = lambda *args, **kwargs: TaskInjectingFilter()
-
-
 class SystemPosixPath(type(Path()), Path):
     """ a pathlib.Path shim that renders with Posix path.sep on all systems
 

@@ -1,4 +1,10 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 def hello(**kwargs):
+    logger.info('hellworld log output')
     return "hello from helloworld", kwargs
 
 

@@ -51,12 +51,6 @@ streams = _omega.OmegaDeferredInstance(_omega._om, 'streams')
 logger = _omega.OmegaDeferredInstance(_omega._om, 'logger')
 #: the settings object
 defaults = _omega.OmegaDeferredInstance(_omega._om, 'defaults')
-# initialize logging
-import yaml
-import logging.config
-with open('logging.yaml', 'r') as fin:
-    loggingConfig = yaml.safe_load(fin)
-logging.config.dictConfig(loggingConfig.get('logging', loggingConfig))
-logging.info('omegaml')
+
 
 
