@@ -214,6 +214,7 @@ class OmegamlTask(EagerSerializationTaskMixin, Task):
     def reset(self):
         # ensure next call will start over and get a new om instance
         self.request._om = None
+        self.request._om_tracking = None
         self.auth_env.prepare_env(None, clear=True)
         # note we do not reset self.request._auth to preserve the user context for logging purpose
 
@@ -258,6 +259,7 @@ class OmegamlTask(EagerSerializationTaskMixin, Task):
                 'task_id': task_id,
             })
             exp.log_extra(taskid=None, remove=True)
+            exp.flush()
         finally:
             super().on_success(retval, task_id, args, kwargs)
             self.reset()

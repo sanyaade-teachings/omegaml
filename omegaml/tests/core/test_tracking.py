@@ -27,6 +27,7 @@ class TrackingTestCases(OmegaTestMixin, unittest.TestCase):
             exp.log_param('foo', 'bar')
         run = exp.start()
         exp.log_param('foo', 'bar')
+        exp.flush()
         data = exp.data(run=run)
         self.assertIsNotNone(run)
         self.assertEqual(len(data), 2)
@@ -279,6 +280,7 @@ class TrackingTestCases(OmegaTestMixin, unittest.TestCase):
         self.assertIn('experiments/foo', om.models.list())
         # add a metric, then clean
         exp.log_metric(5, 'accuracy')
+        exp.flush()
         self.assertEqual(len(exp.data()), 4)
         # explicit drop
         om.models.drop('experiments/foo', data_store=om.datasets)

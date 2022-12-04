@@ -211,6 +211,9 @@ class TrackingProvider:
     def data(self, experiment=None, run=None, event=None, step=None, key=None, raw=False):
         raise NotImplementedError
 
+    def flush(self):
+        pass
+
     @property
     def _data_name(self):
         return f'.experiments/{self._experiment}'
@@ -261,6 +264,11 @@ class OmegaSimpleTracker(TrackingProvider):
     _ensure_active = lambda self, r: r if r is not None else _raise(
         ValueError('no active run, call .start() or .use() '))
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.log_buffer = []
+        self.max_buffer = 6
+
     def active_run(self, run=None):
         """ set the lastest run as the active run
 
@@ -307,7 +315,7 @@ class OmegaSimpleTracker(TrackingProvider):
             status in 'STARTED', 'STOPPED'
         """
         self._run = run or self._run or self._latest_run
-        data = self.data(event=('start', 'stop'), run=self._run, raw=True)
+        data = self.data(event=['start', 'stop'], run=self._run, raw=True)
         no_runs = data is None or len(data) == 0
         has_stop = sum(1 for row in (data or []) if row.get('event') == 'stop')
         return 'PENDING' if no_runs else 'STOPPED' if has_stop else 'STARTED'
@@ -320,7 +328,7 @@ class OmegaSimpleTracker(TrackingProvider):
         self._run = run or (self._latest_run or 0) + 1
         self._startdt = datetime.utcnow()
         data = self._common_log_data('start', key=None, value=None, step=None, dt=self._startdt)
-        self._write_log(data)
+        self._write_log(data, immediate=True)
         return self._run
 
     def stop(self):
@@ -331,6 +339,13 @@ class OmegaSimpleTracker(TrackingProvider):
         self._stopdt = datetime.utcnow()
         data = self._common_log_data('stop', key=None, value=None, step=None, dt=self._stopdt)
         self._write_log(data)
+        self.flush()
+
+    def flush(self):
+        # passing list of list forces insert_many
+        if self.log_buffer:
+            self._store.put(self.log_buffer, self._data_name, index=['event'], noversion=True, as_many=True)
+            self.log_buffer.clear()
 
     def _common_log_data(self, event, key, value, step=None, dt=None, **extra):
         if isinstance(value, dict):
@@ -358,8 +373,10 @@ class OmegaSimpleTracker(TrackingProvider):
         data.update(self._extra_log) if self._extra_log else None
         return data
 
-    def _write_log(self, data):
-        self._store.put(data, self._data_name, noversion=True)
+    def _write_log(self, data, immediate=False):
+        self.log_buffer.append(data)
+        if immediate or len(self.log_buffer) > self.max_buffer:
+            self.flush()
 
     def log_artifact(self, obj, name, step=None, **extra):
         """ log any object to the current run
@@ -396,7 +413,7 @@ class OmegaSimpleTracker(TrackingProvider):
             meta = self._model_store.put(obj, f'.experiments/.artefacts/{objname}')
             format = 'model'
             rawdata = meta.name
-        elif self._store.get_backend_by_obj(obj) is not None:
+        elif self._store.get_backend_byobj(obj) is not None:
             objname = uuid4().hex
             meta = self._store.put(obj, f'.experiments/.artefacts/{objname}')
             format = 'dataset'
@@ -489,7 +506,7 @@ class OmegaSimpleTracker(TrackingProvider):
         """ build a dataframe of all stored data
 
         Args:
-            experiment (str): the name of the experiment, defaults to its current value
+            experiment (str|list): the name of the experiment, defaults to its current value
             run (int|list): the run(s) to get data back, defaults to current run, use 'all' for all
             event (str|list): the event(s) to include
             step (int|list): the step(s) to include
@@ -605,12 +622,17 @@ class OmegaProfilingTracker(OmegaSimpleTracker):
             self.flush()
 
     def flush(self):
-        for step, data in enumerate(self.profile_logs):
-            # record the actual time instead of logging time (avoid buffering delays)
-            dt = data.get('profile_dt')
-            for k, v in data.items():
-                self.log_event('profile', k, v, step=step, dt=dt)
-        self.profile_logs = []
+        def log_items():
+            for step, data in enumerate(self.profile_logs):
+                # record the actual time instead of logging time (avoid buffering delays)
+                dt = data.get('profile_dt')
+                for k, v in data.items():
+                    item = self._common_log_data('profile', k, v, step=step, dt=dt)
+                    yield item
+        if self.profile_logs:
+            self._store.put([item for item in log_items()], self._data_name,
+                            index=['event'], as_many=True, noversion=True)
+            self.profile_logs = []
 
     def start(self):
         self.profiler = BackgroundProfiler(callback=self.log_profile)
@@ -625,7 +647,7 @@ class OmegaProfilingTracker(OmegaSimpleTracker):
 
 try:
     from tensorflow import keras
-except:
+except Exception:
     pass
 else:
     class TensorflowCallback(keras.callbacks.Callback):
