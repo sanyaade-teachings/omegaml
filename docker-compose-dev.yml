@@ -7,9 +7,14 @@ services:
       - "28017:28017"
     command: ["--auth", "--oplogSize", "100"]
   rabbitmq:
-    image: rabbitmq:3.9.15
+    image: bitnami/rabbitmq:3.9.28
     ports:
       - "5672:5672"
+      - "15672:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: foobar
+      - RABBITMQ_USERNAME=admin
+      - RABBITMQ_PASSWORD=foobar
+      - RABBITMQ_PLUGINS=rabbitmq_management
+      -
+
+

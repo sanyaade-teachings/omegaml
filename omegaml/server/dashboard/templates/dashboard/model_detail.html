@@ -1,0 +1,98 @@
+{% extends "dashboard/layouts/base.html" %}
+
+{% block title %} Page Blank {% endblock %}
+
+<!-- Specific CSS goes HERE -->
+{% block stylesheets %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.9.2/jsoneditor.min.js"
+        integrity="sha512-MP2pEPP3BGw032ovuAsX6yTu7O4J6L3YTXuyq3IpR+LuwRun9BBjOeeIKgO3bRiNlI88x3oCVb9I1/1+xmvFIg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.9.2/jsoneditor.min.css"
+      integrity="sha512-brXxIa/fpMfluh8HUWyrNssKy/H0oRzA0HhmipgfVwbXPamMUTZn1jEsvoGGwJYCRpSx4idujdul4vFwWgPROA=="
+      crossorigin="anonymous" referrerpolicy="no-referrer"/>
+{% endblock stylesheets %}
+
+{% block content %}
+<div class="pcoded-main-container">
+    <div class="pcoded-wrapper">
+        <div class="pcoded-content">
+            <div class="pcoded-inner-content">
+                <!-- [ breadcrumb ] start -->
+                <div class="page-header">
+                    <div class="page-block">
+                        <div class="row align-items-center">
+                            <div class="col-md-12">
+                                <div class="page-header-title">
+                                </div>
+                                <ul class="breadcrumb">
+                                    <li class="breadcrumb-item"><a href="/"><i class="feather icon-home"></i></a></li>
+                                    <li class="breadcrumb-item"><a href="/{{segment}}">{{ segment | title }}</a></li>
+                                    <li class="breadcrumb-item"><a href="javascript:">{{ name }}</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- [ breadcrumb ] end -->
+                <div class="main-body">
+                    <div class="page-wrapper">
+                        <!-- [ Main Content ] start -->
+                        <div class="row">
+                            <!-- [ tabs ] start -->
+                            <div class="col-sm-12">
+                                <h5>{{ name }}</h5>
+                                <hr>
+                                <ul class="nav nav-tabs" id="myTab" role="tablist">
+                                    <li class="nav-item">
+                                        <a class="nav-link active text-uppercase" id="summary-tab" data-toggle="tab"
+                                           href="#summary" role="tab" aria-controls="summary"
+                                           aria-selected="true">Summary</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link text-uppercase" id="metadata-tab" data-toggle="tab"
+                                           href="#metadata" role="tab" aria-controls="metadata" aria-selected="false">Metadata</a>
+                                    </li>
+                                </ul>
+                                <div class="tab-content" id="myTabContent">
+                                    <div class="tab-pane fade show active" id="summary" role="tabpanel"
+                                         aria-labelledby="summary-tab">
+                                        <p>
+                                            <button type="button" class="btn btn-secondary">{{ kind }}<span
+                                                    class="badge badge-light"></span></button>
+                                        </p>
+                                        {{ text }}
+                                    </div>
+                                    <div class="tab-pane fade" id="metadata" role="tabpanel"
+                                         aria-labelledby="metadata-tab">
+                                        <p>{{ text }}</p>
+                                        <div id="jsoneditor" style="width: 400px; height: 400px;"></div>
+                                    </div>
+
+                                </div>
+                            </div>
+                            <!-- [ tabs ] end -->
+                        </div>
+                        <!-- [ Main Content ] end -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock content %}
+
+<!-- Specific Page JS goes HERE  -->
+{% block javascripts %}
+<script>
+$(function() {
+    var container = document.getElementById("jsoneditor");
+    var options = {
+        mode: 'tree'
+    };
+    var editor = new JSONEditor(container, options);
+    var data = {{ attributes|tojson }};
+    editor.set(data);
+});
+</script>
+{% endblock javascripts %}

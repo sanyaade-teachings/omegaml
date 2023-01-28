@@ -74,7 +74,7 @@ OMEGA_CELERY_CONFIG = {
     'CELERYBEAT_SCHEDULE': {
         'execute_scripts': {
             'task': 'omegaml.notebook.tasks.execute_scripts',
-            'schedule': 60,
+            'schedule': 5,
         },
     },
     'BROKER_USE_SSL': OMEGA_USESSL,
@@ -408,7 +408,7 @@ def load_framework_support(vars=globals()):
     if module_available('sqlalchemy'):
         vars['OMEGA_STORE_BACKENDS'].update(vars['OMEGA_STORE_BACKENDS_SQL'])
     #: dash backend
-    if 'dash' in OMEGA_FRAMEWORKS and module_available('dashserve'):
+    if 'dash' in vars['OMEGA_FRAMEWORKS'] and module_available('dashserve'):
         vars['OMEGA_STORE_BACKENDS'].update(vars['OMEGA_STORE_BACKENDS_DASH'])
     #: r environment
     if shutil.which('R') is not None:
