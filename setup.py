@@ -128,6 +128,7 @@ setup(
         'mlflow': mlflow_deps,
         'iotools': iotools_deps,
         'streaming': streaming_deps,
+        'server': dashboard_deps,
         'all': all_deps,
         'client': client_deps,
         'all-client': client_deps,
