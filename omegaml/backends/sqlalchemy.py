@@ -208,6 +208,17 @@ class SQLAlchemyBackend(BaseDataBackend):
 
         Returns:
             connection
+
+        To get a cursor for a data query, instead of a DataFrame. Note this
+        implies keep=True, this is potentially unsafe in a multi-user.
+
+        Args:
+
+                lazy (bool): if True, returns a cursor instead of a DataFrame
+                sql (str): the sql query, defaults to the query specific on .put()
+
+        Returns:
+            cursor
         """
         meta = self.data_store.metadata(name)
         connection_str = meta.kind_meta.get('sqlalchemy_connection')
